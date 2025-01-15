@@ -112,6 +112,24 @@ class ButtonMaker:
                 menu.append(self.__footer_button)
         return InlineKeyboardMarkup(menu)
 
+# Some important variables
+default_res = ""
+default_strm = ''
+config = utils.JSO(configPath, 4)
+app = Client(
+    "SHARKOTTDLBOT",
+    bot_token="7439562089:AAGrjFfGXkwAReLtzhSn1aDMi7j7e_oHTZs",
+    api_id="7603458",
+    api_hash="910e420f1f74f40305a684a331dade35",
+    sleep_threshold=30
+)
+
+# List of sudo users (user IDs and group IDs)
+sudo_users = [6066102279]   # Add your user IDs here
+sudo_groups = [-1002273763090]  # Add your group ID here (negative ID for groups)
+dump_chat_id = [-1002316955124]
+credits = "SharkToonsIndia"
+
 # Download playback function
 async def download_playback(content_id, content_data, callback_query):
     initial_message = await callback_query.message.reply_text('[=>] Fetching Playback Details...')
@@ -266,23 +284,7 @@ configPath = joinPath(scriptsDir, 'config.json')
 if not utils.isExist(configPath):
     utils.copyFile(joinPath(scriptsDir, 'config.def'), configPath)
 
-# Some important variables
-default_res = ""
-default_strm = ''
-config = utils.JSO(configPath, 4)
-app = Client(
-    "SHARKOTTDLBOT",
-    bot_token="7439562089:AAGrjFfGXkwAReLtzhSn1aDMi7j7e_oHTZs",
-    api_id="7603458",
-    api_hash="910e420f1f74f40305a684a331dade35",
-    sleep_threshold=30
-)
 
-# List of sudo users (user IDs and group IDs)
-sudo_users = [6066102279]   # Add your user IDs here
-sudo_groups = [-1002273763090]  # Add your group ID here (negative ID for groups)
-dump_chat_id = [-1002316955124]
-credits = "SharkToonsIndia"
 
 async def is_user_sudo(client, user_id):
     # Check if the user is in the sudo_users list
