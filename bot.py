@@ -48,56 +48,6 @@ lang_map = {
 
 
 # Fetch Video URl details using Token
-def fetchPlaybackData(content_id, token):
-    playbackUrl = f"https://apis-jiovoot.voot.com/playbackjv/v3/{content_id}"
-
-    playData = {
-        "4k": True,
-        "ageGroup": "18+",
-        "appVersion": "3.4.0",
-        "bitrateProfile": "xxhdpi",
-        "capability": {
-            "drmCapability": {
-                "aesSupport": "yes",
-                "fairPlayDrmSupport": "none",
-                "playreadyDrmSupport": "yes",
-                "widevineDRMSupport": "yes"
-            },
-            "frameRateCapability": [
-                {
-                    "frameRateSupport": "50fps",
-                    "videoQuality": "2160p"
-                }
-            ]
-        },
-        "continueWatchingRequired": False,
-        "dolby": True,
-        "downloadRequest": False,
-        "hevc": True,
-        "kidsSafe": False,
-        "manufacturer": "Amazon",
-        "model": "AFTKA",
-        "multiAudioRequired": True,
-        "osVersion": "9.0",
-        "parentalPinValid": False,
-        "x-apisignatures": "38bb740b55f"  # Web: o668nxgzwff, FTV: 38bb740b55f, JIOSTB: e882582cc55, ATV: d0287ab96d76
-    }
-    playHeaders = {
-        "accesstoken": token,
-        "x-platform": "androidstb",
-        "x-platform-token": "stb"
-    }
-    playHeaders.update(headers)
-
-    r = session.post(playbackUrl, json=playData, headers=playHeaders)
-    if r.status_code != 200:
-        return None
-
-    result = r.json()
-    if not result['data']:
-        return None
-
-    return result['data']
 
 
 
@@ -1811,7 +1761,7 @@ async def download_playback(content_id, content_data, callback_query):
     is_processing_link = False  # Reset the processing state after the operation is complete
 
     # Fetch playback data using the content ID and auth token
-    content_playback = fetchPlaybackData(content_id, config.get("authToken"))
+    content_playback = jiocine.fetchPlaybackData(content_id, config.get("authToken"))
     
     # Check if playback data was successfully retrieved
     if not content_playback:
