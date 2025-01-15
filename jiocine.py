@@ -168,6 +168,14 @@ def fetchPlaybackData(content_id, token):
     playHeaders.update(headers)
 
     r = session.post(playbackUrl, json=playData, headers=playHeaders)
+
+    # Enhanced logging
+    print(f"Request URL: {playbackUrl}")
+    print(f"Request Headers: {playHeaders}")
+    print(f"Request Body: {playData}")
+    print(f"Response Status Code: {r.status_code}")
+    print(f"Response Content: {r.text}")
+
     if r.status_code != 200:
         return None
 
