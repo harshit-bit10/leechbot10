@@ -1,8 +1,6 @@
 import requests
 import xmltodict
-import logging
 
-# Jio Cinema Downloader Bot Created By Aryan Chaudhary
 # Request object with Session maintained
 session = requests.Session()
 
@@ -23,7 +21,7 @@ contentTypeDir = {
 }
 
 # Language Id Name Map
-LANG_MAP = {
+lang_map = {
     "en": "English",
     "hi": "Hindi",
     "gu": "Gujarati",
@@ -35,6 +33,7 @@ LANG_MAP = {
     "bn": "Bengali",
     "bho": "Bhojpuri",
     "pa": "Punjabi",
+    "jp": "Japanese",
     "or": "Oriya"
 }
 
@@ -50,6 +49,7 @@ REV_LANG_MAP = {
     "Bengali": "bn",
     "Bhojpuri": "bho",
     "Punjabi": "pa",
+     "Japanese":"jp",
     "Oriya": "or"
 }
 
@@ -126,7 +126,6 @@ def getContentDetails(content_id):
 
 
 # Fetch Video URl details using Token
-# Fetch Video URl details using Token
 def fetchPlaybackData(content_id, token):
     playbackUrl = f"https://apis-jiovoot.voot.com/playbackjv/v3/{content_id}"
 
@@ -156,9 +155,10 @@ def fetchPlaybackData(content_id, token):
         "kidsSafe": False,
         "manufacturer": "Amazon",
         "model": "AFTKA",
+        "multiAudioRequired": True,
         "osVersion": "9.0",
         "parentalPinValid": False,
-        "x-apisignatures": "38bb740b55f"
+        "x-apisignatures": "38bb740b55f"  # Web: o668nxgzwff, FTV: 38bb740b55f, JIOSTB: e882582cc55, ATV: d0287ab96d76
     }
     playHeaders = {
         "accesstoken": token,
@@ -168,29 +168,24 @@ def fetchPlaybackData(content_id, token):
     playHeaders.update(headers)
 
     r = session.post(playbackUrl, json=playData, headers=playHeaders)
-
-    # Check for HTTP response status code and log it
     if r.status_code != 200:
-        logging.error(f"Failed to fetch playback data for content ID {content_id}. Status Code: {r.status_code}")
-        logging.error(f"Response: {r.text}")
         return None
 
     result = r.json()
     if not result['data']:
-        logging.warning(f"No playback details found for Content ID: {content_id}")
         return None
 
-    logging.info(f"Fetched playback data for Content ID: {content_id}: {result['data']}")
     return result['data']
 
 
-
-# Fetch Series Episode List from Server
 def getSeriesEpisodes(content_id):
     episodeQueryUrl = "https://content-jiovoot.voot.com/psapi/voot/v1/voot-web//content/generic/series-wise-episode?" + \
                     f"sort=episode:asc&id={content_id}"
 
     r = session.get(episodeQueryUrl, headers=headers)
+    print(f"API Response Status Code: {r.status_code}")  # Debugging output
+    print(f"API Response: {r.text}")  # Print the raw response for debugging
+
     if r.status_code != 200:
         return None
 
@@ -220,6 +215,7 @@ def parseMPDData(mpd_per):
     rid_kid = {}
     pssh_kid = {}
 
+    # Store KID to corresponding Widevine PSSH and Representation ID
     def readContentProt(rid, cp):
         _pssh = None
         if cp[1]["@schemeIdUri"].lower() == "urn:uuid:edef8ba9-79d6-4ace-a3c8-27dcd51d21ed":
@@ -239,6 +235,7 @@ def parseMPDData(mpd_per):
                 if _kid not in pssh_kid[_pssh]:
                     pssh_kid[_pssh].add(_kid)
 
+    # Search PSSH and KID
     for ad_set in mpd_per['AdaptationSet']:
         resp = ad_set['Representation']
         if isinstance(resp, list):
@@ -254,18 +251,26 @@ def parseMPDData(mpd_per):
 
 # Perform Handshake with Widevine Server for License
 def getWidevineLicense(license_url, challenge, token, playback_id=None):
+    # Just in case :)
     if not playback_id:
-        playback_id = "27349583-b5b7-4b3d-bad1-0a8dbd9ea5d4"
+        playback_id = "27349583-b5c0-471b-a95b-1e1010a901cb"
 
-    headers = {
-        "authorization": f"Bearer {token}",
-        "playback-id": playback_id,
-        "content-type": "application/octet-stream"
+    drmHeaders = {
+        "authority": "prod.media.jio.com",
+        "accesstoken": token,
+        "appname": "RJIL_JioCinema",
+        "devicetype": "androidstb",
+        "os": "android",
+        "uniqueid": "1957805b-8c2a-4110-a5d9-767da377ffce",
+        "x-platform": "fireOS",
+        "x-feature-code": "ytvjywxwkn",
+        "x-playbackid": playback_id
     }
+    drmHeaders.update(headers)
 
-    r = session.post(license_url, data=challenge, headers=headers)
+    r = session.post(license_url, data=challenge, headers=drmHeaders)
     if r.status_code != 200:
+        print(f"[!] Error: {r.content}")
         return None
 
     return r.content
-        
