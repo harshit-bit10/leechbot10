@@ -5,8 +5,6 @@ import asyncio
 import utils
 import yt_dlp
 import jiocine
-import requests
-import xmltodict
 import subprocess
 from pyrogram import Client, filters, idle
 from urllib import parse
@@ -49,69 +47,6 @@ lang_map = {
 }
 
 
-
-# Request object with Session maintained
-session = requests.Session()
-
-
-# Common Headers for Session
-headers = {
-    "Origin": "https://www.jiocinema.com",
-    "Referer": "https://www.jiocinema.com/",
-    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36",
-}
-
-# Fetch Video URl details using Token
-def fetchPlaybackData(content_id, token):
-    playbackUrl = f"https://apis-jiovoot.voot.com/playbackjv/v3/{content_id}"
-
-    playData = {
-        "4k": True,
-        "ageGroup": "18+",
-        "appVersion": "3.4.0",
-        "bitrateProfile": "xxhdpi",
-        "capability": {
-            "drmCapability": {
-                "aesSupport": "yes",
-                "fairPlayDrmSupport": "none",
-                "playreadyDrmSupport": "yes",
-                "widevineDRMSupport": "yes"
-            },
-            "frameRateCapability": [
-                {
-                    "frameRateSupport": "50fps",
-                    "videoQuality": "2160p"
-                }
-            ]
-        },
-        "continueWatchingRequired": False,
-        "dolby": True,
-        "downloadRequest": False,
-        "hevc": True,
-        "kidsSafe": False,
-        "manufacturer": "Amazon",
-        "model": "AFTKA",
-        "multiAudioRequired": True,
-        "osVersion": "9.0",
-        "parentalPinValid": False,
-        "x-apisignatures": "38bb740b55f"  # Web: o668nxgzwff, FTV: 38bb740b55f, JIOSTB: e882582cc55, ATV: d0287ab96d76
-    }
-    playHeaders = {
-        "accesstoken": token,
-        "x-platform": "androidstb",
-        "x-platform-token": "stb"
-    }
-    playHeaders.update(headers)
-
-    r = session.post(playbackUrl, json=playData, headers=playHeaders)
-    if r.status_code != 200:
-        return None
-
-    result = r.json()
-    if not result['data']:
-        return None
-
-    return result['data']
 
 
 
@@ -177,6 +112,128 @@ class ButtonMaker:
                 menu.append(self.__footer_button)
         return InlineKeyboardMarkup(menu)
 
+# Download playback function
+async def download_playback(content_id, content_data, callback_query):
+    initial_message = await callback_query.message.reply_text('[=>] Fetching Playback Details...')
+    
+    is_processing_link = False  # Reset the processing state after the operation is complete
+
+    # Fetch playback data using the content ID and auth token
+    content_playback = jiocine.fetchPlaybackData(content_id, config.get("authToken"))
+    
+    # Check if playback data was successfully retrieved
+    if not content_playback:
+        await initial_message.delete()  # Delete the initial message
+        await callback_query.message.reply_text("[X] Playback Details Not Found!")
+        is_processing_link = False
+        return
+
+    playback_urls = content_playback.get("playbackUrls", [])  # Use .get() to avoid KeyError
+    n_playbacks = len(playback_urls)
+    
+    # Ask user to select stream type if multiple playback URLs are available
+    if n_playbacks > 1:
+        await initial_message.delete()  # Delete the initial message
+        stream_type_message = await callback_query.message.reply_text(
+            "Which Stream Type do you prefer? (HLS or DASH)", 
+            reply_markup=create_inline_buttons(["HLS", "DASH"], "stream_type")
+        )
+    elif n_playbacks == 1:
+        await initial_message.delete()  # Delete the initial message
+        playback_data = playback_urls[0]  # Directly assign if only one playback URL is available
+        await process_playback_data(playback_data, callback_query)  # Process immediately if only one URL
+        return  # Exit after processing
+
+    # If no playback data is available, inform the user
+    if n_playbacks == 0:
+        await initial_message.delete()  # Delete the initial message
+        await callback_query.message.reply_text("[X] No playback data available. Please try again.")
+        return
+
+# Handle stream type selection (HLS or DASH)
+# Handle stream type selection (HLS or DASH)
+@app.on_callback_query(filters.regex(r"^stream_type_(\w+)$"))
+async def handle_stream_type_selection(client, callback_query):
+    global selected_stream_type  # Use the global variable to track the selected stream type
+    await callback_query.answer()
+    selected_stream_type = callback_query.data.split("_")[-1]  # Get the selected stream type (HLS or DASH)
+
+    # Fetch playback data based on the selected stream type
+    content_playback = jiocine.fetchPlaybackData(content_data['id'], config.get("authToken"))
+
+    if not content_playback:
+        await callback_query.message.reply_text("[!] Unable to fetch playback data. Please try again.")
+        return
+
+    playback_urls = content_playback.get("playbackUrls", [])
+    
+    if not playback_urls:
+        await callback_query.message.reply_text("[!] No playback URLs found for the selected stream type.")
+        return
+
+    # Select the first available playback URL
+    playback_data = playback_urls[0]
+    global playback_url
+    playback_url = playback_data['url']  # Store the URL
+
+    # Inform the user about the selected stream type and playback URL
+    stream_type_message = await callback_query.message.reply_text(f'[*] Selected Stream Type: {selected_stream_type}')
+    playback_url_message = await callback_query.message.reply_text(f'[*] Playback URL: {playback_url}')
+
+    # Proceed with the download process
+    await process_playback_data(playback_data, callback_query)
+
+    # Delete the stream type and playback URL messages after a short delay
+    await stream_type_message.delete()
+    await playback_url_message.delete()
+    # Also delete the inline buttons message
+    await callback_query.message.delete()  # This will delete the message containing the inline buttons
+
+async def process_playback_data(playback_data, callback_query):
+    global playback_url, rid_map  # Declare rid_map as global
+    if not playback_data:
+        await callback_query.message.reply_text("[X] Unable to get Playback Url!")
+        return
+
+    playback_url = playback_data['url']  # Store the URL
+
+    # Log the required information to the console
+    print(f"Playback URL: {playback_url}, Encryption: {playback_data.get('encryption', 'None')}, Stream Type: {playback_data.get('streamtype', 'Unknown')}")
+
+    # Fetch MPD data if the stream type is DASH
+    if playback_data["streamtype"] == "dash":
+        getting_mpd_message = await callback_query.message.reply_text('[ =>] Getting MPD manifest data...')
+        mpd_data = jiocine.getMPDData(playback_data["url"])
+        if not mpd_data:
+            await getting_mpd_message.delete()  # Delete the getting MPD message
+            await callback_query.message.reply_text("[!] Failed to get MPD manifest")
+            return
+
+        periods = mpd_data['MPD']['Period']
+        if not periods:
+            await getting_mpd_message.delete()  # Delete the getting MPD message
+            await callback_query.message.reply_text("[!] Failed to parse MPD manifest")
+            return
+
+        # Extract rid_map and pssh_kid
+        rid_map, pssh_kid = jiocine.parseMPDData(periods)  # Ensure this function returns the correct values
+
+        # Proceed with decryption if PSSH keys are available
+        if len(pssh_kid) > 0:
+            await fetch_widevine_keys(pssh_kid, content_playback, playback_data)
+            await download_vod_ytdlp(playback_data['url'], content_data, callback_query, has_drm=True, rid_map=rid_map)
+        else:
+            await getting_mpd_message.delete()  # Delete the getting MPD message
+            pssh_message = await callback_query.message.reply_text("[!] Can't find PSSH, Content may be Encrypted")
+            await download_vod_ytdlp(playback_data['url'], content_data, callback_query)
+    elif playback_data["streamtype"] == "hls" and playback_data["encryption"] == "aes128":
+        await download_vod_ytdlp(playback_data['url'], content_data, callback_query)
+    else:
+        await callback_query.message.reply_text("[X] Unsupported Stream Type!")
+
+    await asyncio.sleep(1)  # Wait for 1 seconds (or your desired duration)
+    await pssh_message.delete()  # Delete the message
+
 def extractyt(url, ci):
     try:
         os.remove(f"info{ci}.json")
@@ -226,8 +283,6 @@ sudo_users = [6066102279]   # Add your user IDs here
 sudo_groups = [-1002273763090]  # Add your group ID here (negative ID for groups)
 dump_chat_id = [-1002316955124]
 credits = "SharkToonsIndia"
-authToken = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7InVzZXJJZCI6IjVhNGRjZWNmLWNmZmUtNDU2NS1hNDVjLTI5Yjk0YjZmNTFmMSIsInVzZXJUeXBlIjoiR1VFU1QiLCJhcHBOYW1lIjoiUkpJTF9KaW9DaW5lbWEiLCJkZXZpY2VJZCI6IjE0NjQyNTExMTkiLCJkZXZpY2VUeXBlIjoiZmlyZVRWIiwib3MiOiJhbmRyb2lkIiwicHJvZmlsZUlkIjoiYmE2N2Y3MjAtNTRkNC00YTgyLThkNTUtOTkyMTI4OTc0NzkwIiwiYWRJZCI6IjE0NjQyNTExMTkiLCJleHBlcmltZW50S2V5Ijp7ImNvbmZpZ0tleSI6ImJhNjdmNzIwLTU0ZDQtNGE4Mi04ZDU1LTk5MjEyODk3NDc5MCIsImdyb3VwSWQiOjIyOTh9LCJwcm9maWxlRGV0YWlscyI6eyJwcm9maWxlVHlwZSI6ImFkdWx0IiwiY29udGVudEFnZVJhdGluZyI6IkEifSwidmVyc2lvbiI6MjAyNDAzMDQwfSwiZXhwIjoxNzM5NDQwNzg5LCJpYXQiOjE3MzY4NDg3ODl9.v3LcN_mVenrcGYHPBt5qNjmHlD-YHzhlACyvbt8ZEaYrzgGY481LZlIgsmMCVl_p-hHeN-8zkJqheF09oPdDWw"
-
 
 async def is_user_sudo(client, user_id):
     # Check if the user is in the sudo_users list
@@ -1241,6 +1296,8 @@ async def handle_content_confirmation(client, callback_query):
     else:
         await callback_query.message.reply_text("Content not found. Please try again.")
 
+
+
 async def download_vod_ytdlp(url, content, callback_query, has_drm=False, rid_map=None):
     global default_res, audio_formats, video_formats, output_dir_name, output_dir, temp_dir, ydl_headers, processed_abrs # Declare as global at the beginning of the function
 
@@ -1820,127 +1877,7 @@ async def ask_for_audio_video_selection(client, message, episodes):
 
     await message.reply_text("Please select video tracks:", reply_markup=video_buttons)
 
-# Download playback function
-async def download_playback(content_id, content_data, callback_query):
-    initial_message = await callback_query.message.reply_text('[=>] Fetching Playback Details...')
-    
-    is_processing_link = False  # Reset the processing state after the operation is complete
 
-    # Fetch playback data using the content ID and auth token
-    content_playback = fetchPlaybackData(content_id, authToken)
-    
-    # Check if playback data was successfully retrieved
-    if not content_playback:
-        await initial_message.delete()  # Delete the initial message
-        await callback_query.message.reply_text("[X] Playback Details Not Found!")
-        is_processing_link = False
-        return
-
-    playback_urls = content_playback.get("playbackUrls", [])  # Use .get() to avoid KeyError
-    n_playbacks = len(playback_urls)
-    
-    # Ask user to select stream type if multiple playback URLs are available
-    if n_playbacks > 1:
-        await initial_message.delete()  # Delete the initial message
-        stream_type_message = await callback_query.message.reply_text(
-            "Which Stream Type do you prefer? (HLS or DASH)", 
-            reply_markup=create_inline_buttons(["HLS", "DASH"], "stream_type")
-        )
-    elif n_playbacks == 1:
-        await initial_message.delete()  # Delete the initial message
-        playback_data = playback_urls[0]  # Directly assign if only one playback URL is available
-        await process_playback_data(playback_data, callback_query)  # Process immediately if only one URL
-        return  # Exit after processing
-
-    # If no playback data is available, inform the user
-    if n_playbacks == 0:
-        await initial_message.delete()  # Delete the initial message
-        await callback_query.message.reply_text("[X] No playback data available. Please try again.")
-        return
-
-# Handle stream type selection (HLS or DASH)
-# Handle stream type selection (HLS or DASH)
-@app.on_callback_query(filters.regex(r"^stream_type_(\w+)$"))
-async def handle_stream_type_selection(client, callback_query):
-    global selected_stream_type  # Use the global variable to track the selected stream type
-    await callback_query.answer()
-    selected_stream_type = callback_query.data.split("_")[-1]  # Get the selected stream type (HLS or DASH)
-
-    # Fetch playback data based on the selected stream type
-    content_playback = jiocine.fetchPlaybackData(content_data['id'], config.get("authToken"))
-
-    if not content_playback:
-        await callback_query.message.reply_text("[!] Unable to fetch playback data. Please try again.")
-        return
-
-    playback_urls = content_playback.get("playbackUrls", [])
-    
-    if not playback_urls:
-        await callback_query.message.reply_text("[!] No playback URLs found for the selected stream type.")
-        return
-
-    # Select the first available playback URL
-    playback_data = playback_urls[0]
-    global playback_url
-    playback_url = playback_data['url']  # Store the URL
-
-    # Inform the user about the selected stream type and playback URL
-    stream_type_message = await callback_query.message.reply_text(f'[*] Selected Stream Type: {selected_stream_type}')
-    playback_url_message = await callback_query.message.reply_text(f'[*] Playback URL: {playback_url}')
-
-    # Proceed with the download process
-    await process_playback_data(playback_data, callback_query)
-
-    # Delete the stream type and playback URL messages after a short delay
-    await stream_type_message.delete()
-    await playback_url_message.delete()
-    # Also delete the inline buttons message
-    await callback_query.message.delete()  # This will delete the message containing the inline buttons
-
-async def process_playback_data(playback_data, callback_query):
-    global playback_url, rid_map  # Declare rid_map as global
-    if not playback_data:
-        await callback_query.message.reply_text("[X] Unable to get Playback Url!")
-        return
-
-    playback_url = playback_data['url']  # Store the URL
-
-    # Log the required information to the console
-    print(f"Playback URL: {playback_url}, Encryption: {playback_data.get('encryption', 'None')}, Stream Type: {playback_data.get('streamtype', 'Unknown')}")
-
-    # Fetch MPD data if the stream type is DASH
-    if playback_data["streamtype"] == "dash":
-        getting_mpd_message = await callback_query.message.reply_text('[ =>] Getting MPD manifest data...')
-        mpd_data = jiocine.getMPDData(playback_data["url"])
-        if not mpd_data:
-            await getting_mpd_message.delete()  # Delete the getting MPD message
-            await callback_query.message.reply_text("[!] Failed to get MPD manifest")
-            return
-
-        periods = mpd_data['MPD']['Period']
-        if not periods:
-            await getting_mpd_message.delete()  # Delete the getting MPD message
-            await callback_query.message.reply_text("[!] Failed to parse MPD manifest")
-            return
-
-        # Extract rid_map and pssh_kid
-        rid_map, pssh_kid = jiocine.parseMPDData(periods)  # Ensure this function returns the correct values
-
-        # Proceed with decryption if PSSH keys are available
-        if len(pssh_kid) > 0:
-            await fetch_widevine_keys(pssh_kid, content_playback, playback_data)
-            await download_vod_ytdlp(playback_data['url'], content_data, callback_query, has_drm=True, rid_map=rid_map)
-        else:
-            await getting_mpd_message.delete()  # Delete the getting MPD message
-            pssh_message = await callback_query.message.reply_text("[!] Can't find PSSH, Content may be Encrypted")
-            await download_vod_ytdlp(playback_data['url'], content_data, callback_query)
-    elif playback_data["streamtype"] == "hls" and playback_data["encryption"] == "aes128":
-        await download_vod_ytdlp(playback_data['url'], content_data, callback_query)
-    else:
-        await callback_query.message.reply_text("[X] Unsupported Stream Type!")
-
-    await asyncio.sleep(1)  # Wait for 1 seconds (or your desired duration)
-    await pssh_message.delete()  # Delete the message
 
 async def get_video_duration(video_path):
     """Get the duration of the video file using ffprobe."""
