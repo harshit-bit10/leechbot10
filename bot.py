@@ -46,6 +46,9 @@ lang_map = {
     "or": "Oriya"
 }
 
+# Request object with Session maintained
+session = requests.Session()
+
 
 # Common Headers for Session
 headers = {
