@@ -204,42 +204,62 @@ global rid_map  # Add this line at the top of your script
 rid_map = {}  # Initialize it as an empty dictionary
 
 # Download playback function
+
+# Process playback data (mock function for further implementation)
+async def process_playback_data(playback_data, callback_query):
+    logging.info(f"Processing playback data: {playback_data}")
+    await callback_query.message.reply_text(f"Playback URL: {playback_data.get('url')}\nType: {playback_data.get('type')}")
+
+# Download playback function
 async def download_playback(content_id, content_data, callback_query):
+    logging.info(f"Starting download playback for Content ID: {content_id}")
+
     initial_message = await callback_query.message.reply_text('[=>] Fetching Playback Details...')
-    
     is_processing_link = False  # Reset the processing state after the operation is complete
 
-    # Fetch playback data using the content ID and auth token
-    content_playback = jiocine.fetchPlaybackData(content_id, config.get("authToken"))
-    
-    # Check if playback data was successfully retrieved
-    if not content_playback:
-        await initial_message.delete()  # Delete the initial message
-        await callback_query.message.reply_text("[X] Playback Details Not Found!")
-        is_processing_link = False
-        return
+    try:
+        # Fetch playback data using the content ID and auth token
+        content_playback = fetchPlaybackData(content_id, config.get("authToken"))
+        logging.info(f"Fetched playback data: {content_playback}")
 
-    playback_urls = content_playback.get("playbackUrls", [])  # Use .get() to avoid KeyError
-    n_playbacks = len(playback_urls)
-    
-    # Ask user to select stream type if multiple playback URLs are available
-    if n_playbacks > 1:
-        await initial_message.delete()  # Delete the initial message
-        stream_type_message = await callback_query.message.reply_text(
-            "Which Stream Type do you prefer? (HLS or DASH)", 
-            reply_markup=create_inline_buttons(["HLS", "DASH"], "stream_type")
-        )
-    elif n_playbacks == 1:
-        await initial_message.delete()  # Delete the initial message
-        playback_data = playback_urls[0]  # Directly assign if only one playback URL is available
-        await process_playback_data(playback_data, callback_query)  # Process immediately if only one URL
-        return  # Exit after processing
+        # Check if playback data was successfully retrieved
+        if not content_playback:
+            logging.warning(f"No playback details found for Content ID: {content_id}")
+            await initial_message.delete()
+            await callback_query.message.reply_text("[X] Playback Details Not Found!")
+            is_processing_link = False
+            return
 
-    # If no playback data is available, inform the user
-    if n_playbacks == 0:
-        await initial_message.delete()  # Delete the initial message
-        await callback_query.message.reply_text("[X] No playback data available. Please try again.")
-        return
+        playback_urls = content_playback.get("playbackUrls", [])  # Use .get() to avoid KeyError
+        n_playbacks = len(playback_urls)
+        logging.info(f"Number of playback URLs found: {n_playbacks}")
+
+        # Ask user to select stream type if multiple playback URLs are available
+        if n_playbacks > 1:
+            logging.info("Multiple playback URLs found. Asking user for stream type selection.")
+            await initial_message.delete()
+            await callback_query.message.reply_text(
+                "Which Stream Type do you prefer? (HLS or DASH)", 
+                reply_markup=create_inline_buttons(["HLS", "DASH"], "stream_type")
+            )
+        elif n_playbacks == 1:
+            logging.info("Single playback URL found. Processing immediately.")
+            await initial_message.delete()
+            playback_data = playback_urls[0]
+            await process_playback_data(playback_data, callback_query)
+            return
+
+        # If no playback data is available, inform the user
+        if n_playbacks == 0:
+            logging.warning("No playback data available.")
+            await initial_message.delete()
+            await callback_query.message.reply_text("[X] No playback data available. Please try again.")
+            return
+    except Exception as e:
+        logging.error(f"An error occurred: {e}", exc_info=True)
+        await initial_message.delete()
+        await callback_query.message.reply_text("[X] An unexpected error occurred. Please try again later.")
+
 
 # Handle stream type selection (HLS or DASH)
 # Handle stream type selection (HLS or DASH)
