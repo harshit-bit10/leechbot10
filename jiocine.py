@@ -98,7 +98,7 @@ def fetchGuestToken():
         "appVersion": "4.1.3"
     }
 
-    r = session.post(guestTokenUrl, json=guestData, headers=headers)
+    r = session.post(guestTokenUrl, json=guestData, headers=headers, proxies=proxy)
     if r.status_code != 200:
         return None
 
