@@ -2,7 +2,9 @@ pycryptodome
 pycryptodomex
 pywidevine
 PyYAML
+aiohttp
 requests
 tqdm
 xmltodict
 yt-dlp
+ffmpeg-python
