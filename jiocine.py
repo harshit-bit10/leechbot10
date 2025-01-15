@@ -5,11 +5,7 @@ import xmltodict
 session = requests.Session()
 
 # Common Headers for Session
-headers = {
-    "Origin": "https://www.jiocinema.com",
-    "Referer": "https://www.jiocinema.com/",
-    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36",
-}
+headers = {'authority': 'content-jiovoot.voot.com', 'accept': 'application/json, text/plain, */*', 'accept-language': 'en-US,en;q=0.9', 'origin': 'https://www.jiocinema.com', 'referer': 'https://www.jiocinema.com/', 'sec-ch-ua': '\"Not.A/Brand\";v=\"8\", \"Chromium\";v=\"114\", \"Google Chrome\";v=\"114\"', 'sec-ch-ua-mobile': '?0', 'sec-ch-ua-platform': '\"Windows\"', 'sec-fetch-dest': 'empty', 'sec-fetch-mode': 'cors', 'sec-fetch-site': 'cross-site', 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'}
 
 # Content Type Dir Map
 contentTypeDir = {
@@ -168,14 +164,6 @@ def fetchPlaybackData(content_id, token):
     playHeaders.update(headers)
 
     r = session.post(playbackUrl, json=playData, headers=playHeaders)
-
-    # Enhanced logging
-    print(f"Request URL: {playbackUrl}")
-    print(f"Request Headers: {playHeaders}")
-    print(f"Request Body: {playData}")
-    print(f"Response Status Code: {r.status_code}")
-    print(f"Response Content: {r.text}")
-
     if r.status_code != 200:
         return None
 
