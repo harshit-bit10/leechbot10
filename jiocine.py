@@ -1,10 +1,11 @@
 import requests
-import logging
 import xmltodict
-
+#Jio Cinema Downloader Bot Created By Aryan Chaudhary
 # Request object with Session maintained
 session = requests.Session()
-
+#session.proxies.update({'http':'http://72.10.160.90:8307'})
+session.proxies.update({'http':'http://72.10.160.90:8307'})
+proxy = {'http':'http://72.10.160.90:8307','https':"http://72.10.160.90:8307"}
 # Common Headers for Session
 headers = {
     "Origin": "https://www.jiocinema.com",
@@ -22,7 +23,7 @@ contentTypeDir = {
 }
 
 # Language Id Name Map
-lang_map = {
+LANG_MAP = {
     "en": "English",
     "hi": "Hindi",
     "gu": "Gujarati",
@@ -34,7 +35,6 @@ lang_map = {
     "bn": "Bengali",
     "bho": "Bhojpuri",
     "pa": "Punjabi",
-    "jp": "Japanese",
     "or": "Oriya"
 }
 
@@ -50,7 +50,6 @@ REV_LANG_MAP = {
     "Bengali": "bn",
     "Bhojpuri": "bho",
     "Punjabi": "pa",
-     "Japanese":"jp",
     "Oriya": "or"
 }
 
@@ -99,7 +98,7 @@ def fetchGuestToken():
         "appVersion": "4.1.3"
     }
 
-    r = session.post(guestTokenUrl, json=guestData, headers=headers)
+    r = session.post(guestTokenUrl, json=guestData, headers=headers, proxies = proxy)
     if r.status_code != 200:
         return None
 
@@ -115,7 +114,7 @@ def getContentDetails(content_id):
     assetQueryUrl = "https://content-jiovoot.voot.com/psapi/voot/v1/voot-web//content/query/asset-details?" + \
                     f"&ids=include:{content_id}&responseType=common&devicePlatformType=desktop"
 
-    r = session.get(assetQueryUrl, headers=headers)
+    r = session.get(assetQueryUrl, headers=headers, proxies = proxy)
     if r.status_code != 200:
         return None
 
@@ -125,12 +124,12 @@ def getContentDetails(content_id):
 
     return result['result'][0]
 
-# Fetch Video URL Details Using Token
-def fetchPlaybackData(content_id, token):
-    playback_url = f"https://apis-jiovoot.voot.com/playbackjv/v3/{content_id}"
 
-    # Payload with required details
-    play_data = {
+# Fetch Video URl details using Token
+def fetchPlaybackData(content_id, token):
+    playbackUrl = f"https://apis-jiovoot.voot.com/playbackjv/v3/{content_id}"
+
+    playData = {
         "4k": True,
         "ageGroup": "18+",
         "appVersion": "3.4.0",
@@ -161,50 +160,22 @@ def fetchPlaybackData(content_id, token):
         "parentalPinValid": False,
         "x-apisignatures": "38bb740b55f"  # Web: o668nxgzwff, FTV: 38bb740b55f, JIOSTB: e882582cc55, ATV: d0287ab96d76
     }
-
-    # Headers with authentication and platform details
-    play_headers = {
+    playHeaders = {
         "accesstoken": token,
         "x-platform": "androidstb",
         "x-platform-token": "stb"
     }
+    playHeaders.update(headers)
 
-    # Add any additional global headers if needed
-    global_headers = {
-        # Example global headers, replace with your actual headers
-        "User-Agent": "Your-App-Name/3.4.0",
-        "Content-Type": "application/json"
-    }
-    play_headers.update(global_headers)
-
-    try:
-        # Make the POST request
-        logging.info(f"Fetching playback data for content ID: {content_id}")
-        response = requests.post(playback_url, json=play_data, headers=play_headers)
-
-        # Check response status
-        if response.status_code != 200:
-            logging.error(f"Playback data fetch failed. HTTP Status: {response.status_code}, Response: {response.text}")
-            return None
-
-        # Parse the JSON response
-        result = response.json()
-        logging.debug(f"Playback data response: {result}")
-
-        # Validate and return playback data
-        if not result.get('data'):
-            logging.warning(f"No playback data found for content ID: {content_id}")
-            return None
-
-        return result['data']
-
-    except requests.exceptions.RequestException as e:
-        logging.error(f"An error occurred while fetching playback data: {e}")
-        return None
-    except Exception as e:
-        logging.error(f"Unexpected error: {e}")
+    r = session.post(playbackUrl, json=playData, headers=playHeaders, proxies = proxy)
+    if r.status_code != 200:
         return None
 
+    result = r.json()
+    if not result['data']:
+        return None
+
+    return result['data']
 
 
 # Fetch Series Episode List from Server
@@ -212,7 +183,7 @@ def getSeriesEpisodes(content_id):
     episodeQueryUrl = "https://content-jiovoot.voot.com/psapi/voot/v1/voot-web//content/generic/series-wise-episode?" + \
                     f"sort=episode:asc&id={content_id}"
 
-    r = session.get(episodeQueryUrl, headers=headers)
+    r = session.get(episodeQueryUrl, headers=headers, proxies = proxy)
     if r.status_code != 200:
         return None
 
@@ -225,7 +196,7 @@ def getSeriesEpisodes(content_id):
 
 # Fetch Video URl details using Token
 def getMPDData(mpd_url):
-    r = session.get(mpd_url, headers=headers)
+    r = session.get(mpd_url, headers=headers, proxies = proxy)
     if r.status_code != 200:
         return None
 
@@ -283,7 +254,7 @@ def getWidevineLicense(license_url, challenge, token, playback_id=None):
         playback_id = "27349583-b5c0-471b-a95b-1e1010a901cb"
 
     drmHeaders = {
-        "authority": "prod.media.jio.com",
+        "authority": "key-jio.voot.com",
         "accesstoken": token,
         "appname": "RJIL_JioCinema",
         "devicetype": "androidstb",
@@ -295,9 +266,13 @@ def getWidevineLicense(license_url, challenge, token, playback_id=None):
     }
     drmHeaders.update(headers)
 
-    r = session.post(license_url, data=challenge, headers=drmHeaders)
+    r = session.post(license_url, data=challenge, headers=drmHeaders, proxies = proxy)
     if r.status_code != 200:
         print(f"[!] Error: {r.content}")
         return None
 
     return r.content
+
+
+
+#Jio Cinema Downloader Bot Created By Aryan Chaudhary
