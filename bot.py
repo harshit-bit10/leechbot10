@@ -6,7 +6,6 @@ import utils
 import yt_dlp
 import jiocine
 import subprocess
-from utils import humanbytes, get_duration, get_thumbnail
 from pyrogram import Client, filters, idle
 from urllib import parse
 import time
