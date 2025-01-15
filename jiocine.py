@@ -1,35 +1,93 @@
 import requests
 import xmltodict
-import logging
 
-# Initialize Logging
-logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
-logger = logging.getLogger("JioCinemaDownloader")
-
-# Session Setup
+# Jio Cinema Downloader Bot Created By Aryan Chaudhary
+# Request object with Session maintained
 session = requests.Session()
 
-# Headers for requests
-HEADERS = {
+# Common Headers for Session
+headers = {
     "Origin": "https://www.jiocinema.com",
     "Referer": "https://www.jiocinema.com/",
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36",
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36",
 }
 
-# Language Map
+# Content Type Dir Map
+contentTypeDir = {
+    "CAC": "promos",
+    "MOVIE": "movies",
+    "SHOW": "series",
+    "SERIES": "series",
+    "EPISODE": "series"
+}
+
+# Language Id Name Map
 LANG_MAP = {
-    "en": "English", "hi": "Hindi", "gu": "Gujarati", "ta": "Tamil",
-    "te": "Telugu", "kn": "Kannada", "mr": "Marathi", "ml": "Malayalam",
-    "bn": "Bengali", "bho": "Bhojpuri", "pa": "Punjabi", "or": "Oriya"
+    "en": "English",
+    "hi": "Hindi",
+    "gu": "Gujarati",
+    "ta": "Tamil",
+    "te": "Telugu",
+    "kn": "Kannada",
+    "mr": "Marathi",
+    "ml": "Malayalam",
+    "bn": "Bengali",
+    "bho": "Bhojpuri",
+    "pa": "Punjabi",
+    "or": "Oriya"
 }
 
-# Reverse Language Map
-REV_LANG_MAP = {v: k for k, v in LANG_MAP.items()}
+REV_LANG_MAP = {
+    "English": "en",
+    "Hindi": "hi",
+    "Gujarati": "gu",
+    "Tamil": "ta",
+    "Telugu": "te",
+    "Kannada": "kn",
+    "Marathi": "mr",
+    "Malayalam": "ml",
+    "Bengali": "bn",
+    "Bhojpuri": "bho",
+    "Punjabi": "pa",
+    "Oriya": "or"
+}
 
-# Fetch Guest Token
-def fetch_guest_token():
-    url = "https://auth-jiocinema.voot.com/tokenservice/apis/v4/guest"
-    payload = {
+# Audio Codec Decode Map
+AUDIO_CODECS = {
+    "1": "PCM",
+    "mp3": "MP3",
+    "mp4a.66": "MPEG2_AAC",
+    "mp4a.67": "MPEG2_AAC",
+    "mp4a.68": "MPEG2_AAC",
+    "mp4a.69": "MP3",
+    "mp4a.6B": "MP3",
+    "mp4a.40.2": "MPEG4_AAC",
+    "mp4a.40.02": "MPEG4_AAC",
+    "mp4a.40.5": "MPEG4_AAC",
+    "mp4a.40.05": "MPEG4_AAC",
+    "mp4a.40.29": "MPEG4_AAC",
+    "mp4a.40.42": "MPEG4_XHE_AAC",
+    "ac-3": "AC3",
+    "mp4a.a5": "AC3",
+    "mp4a.A5": "AC3",
+    "ec-3": "EAC3",
+    "mp4a.a6": "EAC3",
+    "mp4a.A6": "EAC3",
+    "vorbis": "VORBIS",
+    "opus": "OPUS",
+    "flac": "FLAC",
+    "vp8": "VP8",
+    "vp8.0": "VP8",
+    "theora": "THEORA",
+}
+
+
+# Request guest token from JioCine Server
+def fetchGuestToken():
+    # URL to Guest Token Server
+    guestTokenUrl = "https://auth-jiocinema.voot.com/tokenservice/apis/v4/guest"
+
+    guestData = {
         "appName": "RJIL_JioCinema",
         "deviceType": "fireTV",
         "os": "android",
@@ -39,101 +97,167 @@ def fetch_guest_token():
         "appVersion": "4.1.3"
     }
 
-    try:
-        response = session.post(url, json=payload, headers=HEADERS)
-        response.raise_for_status()
-        data = response.json()
-        token = data.get('authToken')
-        if token:
-            logger.info("Successfully fetched guest token.")
-            return token
-        else:
-            logger.error("Failed to fetch guest token: Token missing in response.")
-    except Exception as e:
-        logger.error(f"Error fetching guest token: {e}")
-    return None
+    r = session.post(guestTokenUrl, json=guestData, headers=headers)
+    if r.status_code != 200:
+        return None
 
-# Fetch Content Details
-def get_content_details(content_id):
-    url = f"https://content-jiovoot.voot.com/psapi/voot/v1/voot-web/content/query/asset-details?ids=include:{content_id}&responseType=common"
-    try:
-        response = session.get(url, headers=HEADERS)
-        response.raise_for_status()
-        data = response.json()
-        result = data.get('result', [])
-        if result:
-            logger.info(f"Fetched content details for ID: {content_id}")
-            return result[0]
-        else:
-            logger.warning("No content details found.")
-    except Exception as e:
-        logger.error(f"Error fetching content details: {e}")
-    return None
+    result = r.json()
+    if not result['authToken']:
+        return None
 
-# Fetch Playback Data
-def fetch_playback_data(content_id, token):
-    url = f"https://apis-jiovoot.voot.com/playbackjv/v3/{content_id}"
-    payload = {
+    return result['authToken']
+
+
+# Fetch Content Details from Server
+def getContentDetails(content_id):
+    assetQueryUrl = "https://content-jiovoot.voot.com/psapi/voot/v1/voot-web//content/query/asset-details?" + \
+                    f"&ids=include:{content_id}&responseType=common&devicePlatformType=desktop"
+
+    r = session.get(assetQueryUrl, headers=headers)
+    if r.status_code != 200:
+        return None
+
+    result = r.json()
+    if not result['result'] or len(result['result']) < 1:
+        return None
+
+    return result['result'][0]
+
+
+# Fetch Video URl details using Token
+def fetchPlaybackData(content_id, token):
+    playbackUrl = f"https://apis-jiovoot.voot.com/playbackjv/v3/{content_id}"
+
+    playData = {
         "4k": True,
+        "ageGroup": "18+",
         "appVersion": "3.4.0",
-        "multiAudioRequired": True,
+        "bitrateProfile": "xxhdpi",
+        "capability": {
+            "drmCapability": {
+                "aesSupport": "yes",
+                "fairPlayDrmSupport": "none",
+                "playreadyDrmSupport": "yes",
+                "widevineDRMSupport": "yes"
+            },
+            "frameRateCapability": [
+                {
+                    "frameRateSupport": "50fps",
+                    "videoQuality": "2160p"
+                }
+            ]
+        },
+        "continueWatchingRequired": False,
+        "dolby": True,
+        "downloadRequest": False,
         "hevc": True,
-        "dolby": True
+        "kidsSafe": False,
+        "manufacturer": "Amazon",
+        "model": "AFTKA",
+        "multiAudioRequired": True,
+        "osVersion": "9.0",
+        "parentalPinValid": False,
+        "x-apisignatures": "38bb740b55f"
     }
-    headers = {
+    playHeaders = {
         "accesstoken": token,
         "x-platform": "androidstb",
-        "x-platform-token": "stb",
-        **HEADERS
+        "x-platform-token": "stb"
     }
-    try:
-        response = session.post(url, json=payload, headers=headers)
-        response.raise_for_status()
-        data = response.json()
-        playback_data = data.get('data')
-        if playback_data:
-            logger.info(f"Playback data fetched for content ID: {content_id}")
-            return playback_data
-        else:
-            logger.warning("Playback data not available.")
-    except Exception as e:
-        logger.error(f"Error fetching playback data: {e}")
-    return None
+    playHeaders.update(headers)
 
-# Fetch MPD Data
-def fetch_mpd_data(mpd_url):
-    try:
-        response = session.get(mpd_url, headers=HEADERS)
-        response.raise_for_status()
-        return xmltodict.parse(response.content)
-    except Exception as e:
-        logger.error(f"Error fetching MPD data: {e}")
-    return None
+    r = session.post(playbackUrl, json=playData, headers=playHeaders)
+    if r.status_code != 200:
+        return None
 
-# Parse MPD for PSSH and KID
-def parse_mpd_data(mpd_data):
+    result = r.json()
+    if not result['data']:
+        return None
+
+    return result['data']
+
+
+# Fetch Series Episode List from Server
+def getSeriesEpisodes(content_id):
+    episodeQueryUrl = "https://content-jiovoot.voot.com/psapi/voot/v1/voot-web//content/generic/series-wise-episode?" + \
+                    f"sort=episode:asc&id={content_id}"
+
+    r = session.get(episodeQueryUrl, headers=headers)
+    if r.status_code != 200:
+        return None
+
+    result = r.json()
+    if not result['result'] or len(result['result']) < 1:
+        return None
+
+    return result['result']
+
+
+# Fetch Video URl details using Token
+def getMPDData(mpd_url):
+    r = session.get(mpd_url, headers=headers)
+    if r.status_code != 200:
+        return None
+
+    try:
+        return xmltodict.parse(r.content)
+    except Exception as e:
+        print(f"[!] getMPDData: {e}")
+        return None
+
+
+# Parse MPD data for PSSH maps
+def parseMPDData(mpd_per):
+    # Extract PSSH and KID
     rid_kid = {}
     pssh_kid = {}
 
-    def process_content_protection(rid, cp):
+    def readContentProt(rid, cp):
+        _pssh = None
         if cp[1]["@schemeIdUri"].lower() == "urn:uuid:edef8ba9-79d6-4ace-a3c8-27dcd51d21ed":
-            pssh = cp[1].get("cenc:pssh")
-            if pssh:
-                kid = cp[0].get("@cenc:default_KID", "").replace("-", "")
-                rid_kid[rid] = {"kid": kid, "pssh": pssh}
-                pssh_kid.setdefault(pssh, set()).add(kid)
+            _pssh = cp[1]["cenc:pssh"]
 
-    try:
-        for adaptation in mpd_data.get('AdaptationSet', []):
-            representations = adaptation.get('Representation', [])
-            if not isinstance(representations, list):
-                representations = [representations]
-            for representation in representations:
-                cp = representation.get('ContentProtection', [])
-                if len(cp) > 1:
-                    process_content_protection(representation['@id'], cp)
-        return rid_kid, pssh_kid
-    except Exception as e:
-        logger.error(f"Error parsing MPD data: {e}")
-    return {}, {}
+        if _pssh:
+            if _pssh not in pssh_kid:
+                pssh_kid[_pssh] = set()
 
+            if cp[0]['@value'].lower() == "cenc":
+                _kid = cp[0]["@cenc:default_KID"].replace("-", "")  # Cleanup
+
+                rid_kid[rid] = {
+                    "kid": _kid,
+                    "pssh": _pssh
+                }
+                if _kid not in pssh_kid[_pssh]:
+                    pssh_kid[_pssh].add(_kid)
+
+    for ad_set in mpd_per['AdaptationSet']:
+        resp = ad_set['Representation']
+        if isinstance(resp, list):
+            for res in resp:
+                if 'ContentProtection' in res:
+                    readContentProt(res['@id'], res['ContentProtection'])
+        else:
+            if 'ContentProtection' in resp:
+                readContentProt(resp['@id'], resp['ContentProtection'])
+
+    return rid_kid, pssh_kid
+
+
+# Perform Handshake with Widevine Server for License
+def getWidevineLicense(license_url, challenge, token, playback_id=None):
+    if not playback_id:
+        playback_id = "27349583-b5b7-4b3d-bad1-0a8dbd9ea5d4"
+
+    headers = {
+        "authorization": f"Bearer {token}",
+        "playback-id": playback_id,
+        "content-type": "application/octet-stream"
+    }
+
+    r = session.post(license_url, data=challenge, headers=headers)
+    if r.status_code != 200:
+        return None
+
+    return r.content
+        
