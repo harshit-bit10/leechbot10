@@ -8,3 +8,5 @@ tqdm
 xmltodict
 yt-dlp
 ffmpeg-python
+pyrogram
+pytz
