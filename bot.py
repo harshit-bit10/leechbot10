@@ -204,13 +204,6 @@ global rid_map  # Add this line at the top of your script
 rid_map = {}  # Initialize it as an empty dictionary
 
 # Download playback function
-
-# Process playback data (mock function for further implementation)
-async def process_playback_data(playback_data, callback_query):
-    logging.info(f"Processing playback data: {playback_data}")
-    await callback_query.message.reply_text(f"Playback URL: {playback_data.get('url')}\nType: {playback_data.get('type')}")
-
-# Download playback function
 async def download_playback(content_id, content_data, callback_query):
     logging.info(f"Starting download playback for Content ID: {content_id}")
 
@@ -219,7 +212,7 @@ async def download_playback(content_id, content_data, callback_query):
 
     try:
         # Fetch playback data using the content ID and auth token
-        content_playback = fetchPlaybackData(content_id, config.get("authToken"))
+        content_playback = jiocine.fetchPlaybackData(content_id, config.get("authToken"))
         logging.info(f"Fetched playback data: {content_playback}")
 
         # Check if playback data was successfully retrieved
