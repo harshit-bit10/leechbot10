@@ -17,4 +17,4 @@ COPY . .
 # ENV YOUR_ENV_VAR=value
 
 # Command to run the bot
-CMD ["python", "bot.pyc"]
+CMD ["python", "bot.py"]
