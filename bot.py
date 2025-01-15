@@ -5,6 +5,8 @@ import asyncio
 import utils
 import yt_dlp
 import jiocine
+import requests
+import xmltodict
 import subprocess
 from pyrogram import Client, filters, idle
 from urllib import parse
