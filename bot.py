@@ -1817,7 +1817,7 @@ async def download_playback(content_id, content_data, callback_query):
     is_processing_link = False  # Reset the processing state after the operation is complete
 
     # Fetch playback data using the content ID and auth token
-    content_playback = jiocine.fetchPlaybackData(content_id, config.get("authToken"))
+    content_playback = fetchPlaybackData(content_id, config.get("authToken"))
     
     # Check if playback data was successfully retrieved
     if not content_playback:
