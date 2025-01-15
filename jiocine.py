@@ -1,5 +1,6 @@
 import requests
 import xmltodict
+import logging
 
 # Jio Cinema Downloader Bot Created By Aryan Chaudhary
 # Request object with Session maintained
