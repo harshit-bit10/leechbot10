@@ -1275,26 +1275,30 @@ async def process_playback_data(playback_data, callback_query):
     global playback_url, rid_map  # Declare rid_map as global
     if not playback_data:
         await callback_query.message.reply_text("[X] Unable to get Playback Url!")
+        logger.error("Playback data is empty or None.")
         return
 
     playback_url = playback_data['url']  # Store the URL
 
     # Log the required information to the console
-    print(f"Playback URL: {playback_url}, Encryption: {playback_data.get('encryption', 'None')}, Stream Type: {playback_data.get('streamtype', 'Unknown')}")
+    logger.info(f"Playback URL: {playback_url}, Encryption: {playback_data.get('encryption', 'None')}, Stream Type: {playback_data.get('streamtype', 'Unknown')}")
 
     # Fetch MPD data if the stream type is DASH
     if playback_data["streamtype"] == "dash":
         getting_mpd_message = await callback_query.message.reply_text('[ =>] Getting MPD manifest data...')
         mpd_data = jiocine.getMPDData(playback_data["url"])
+        
         if not mpd_data:
             await getting_mpd_message.delete()  # Delete the getting MPD message
             await callback_query.message.reply_text("[!] Failed to get MPD manifest")
+            logger.error(f"Failed to retrieve MPD manifest for URL: {playback_url}")
             return
 
-        periods = mpd_data['MPD']['Period']
+        periods = mpd_data['MPD'].get('Period', [])
         if not periods:
             await getting_mpd_message.delete()  # Delete the getting MPD message
             await callback_query.message.reply_text("[!] Failed to parse MPD manifest")
+            logger.error(f"MPD manifest retrieved but no periods found for URL: {playback_url}")
             return
 
         # Extract rid_map and pssh_kid
@@ -1307,14 +1311,17 @@ async def process_playback_data(playback_data, callback_query):
         else:
             await getting_mpd_message.delete()  # Delete the getting MPD message
             pssh_message = await callback_query.message.reply_text("[!] Can't find PSSH, Content may be Encrypted")
+            logger.warning(f"No PSSH found for URL: {playback_url}. Content may be encrypted.")
             await download_vod_ytdlp(playback_data['url'], content_data, callback_query)
     elif playback_data["streamtype"] == "hls" and playback_data["encryption"] == "aes128":
         await download_vod_ytdlp(playback_data['url'], content_data, callback_query)
     else:
         await callback_query.message.reply_text("[X] Unsupported Stream Type!")
+        logger.error(f"Unsupported stream type for URL: {playback_url}. Stream Type: {playback_data['streamtype']}")
 
     await asyncio.sleep(1)  # Wait for 1 seconds (or your desired duration)
-    await pssh_message.delete()  # Delete the message
+    if 'pssh_message' in locals():
+        await pssh_message.delete()  # Delete the message if it was created
 
 async def download_vod_ytdlp(url, content, callback_query, has_drm=False, rid_map=None):
     global default_res, audio_formats, video_formats, output_dir_name, output_dir, temp_dir, ydl_headers, processed_abrs # Declare as global at the beginning of the function
