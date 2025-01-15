@@ -125,6 +125,7 @@ def getContentDetails(content_id):
 
 
 # Fetch Video URl details using Token
+# Fetch Video URl details using Token
 def fetchPlaybackData(content_id, token):
     playbackUrl = f"https://apis-jiovoot.voot.com/playbackjv/v3/{content_id}"
 
@@ -154,7 +155,6 @@ def fetchPlaybackData(content_id, token):
         "kidsSafe": False,
         "manufacturer": "Amazon",
         "model": "AFTKA",
-        "multiAudioRequired": True,
         "osVersion": "9.0",
         "parentalPinValid": False,
         "x-apisignatures": "38bb740b55f"
@@ -167,14 +167,21 @@ def fetchPlaybackData(content_id, token):
     playHeaders.update(headers)
 
     r = session.post(playbackUrl, json=playData, headers=playHeaders)
+
+    # Check for HTTP response status code and log it
     if r.status_code != 200:
+        logging.error(f"Failed to fetch playback data for content ID {content_id}. Status Code: {r.status_code}")
+        logging.error(f"Response: {r.text}")
         return None
 
     result = r.json()
     if not result['data']:
+        logging.warning(f"No playback details found for Content ID: {content_id}")
         return None
 
+    logging.info(f"Fetched playback data for Content ID: {content_id}: {result['data']}")
     return result['data']
+
 
 
 # Fetch Series Episode List from Server
