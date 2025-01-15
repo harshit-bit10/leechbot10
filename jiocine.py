@@ -1,4 +1,5 @@
 import requests
+import logging
 import xmltodict
 
 # Request object with Session maintained
@@ -124,12 +125,12 @@ def getContentDetails(content_id):
 
     return result['result'][0]
 
-
-# Fetch Video URl details using Token
+# Fetch Video URL Details Using Token
 def fetchPlaybackData(content_id, token):
-    playbackUrl = f"https://apis-jiovoot.voot.com/playbackjv/v3/{content_id}"
+    playback_url = f"https://apis-jiovoot.voot.com/playbackjv/v3/{content_id}"
 
-    playData = {
+    # Payload with required details
+    play_data = {
         "4k": True,
         "ageGroup": "18+",
         "appVersion": "3.4.0",
@@ -160,22 +161,50 @@ def fetchPlaybackData(content_id, token):
         "parentalPinValid": False,
         "x-apisignatures": "38bb740b55f"  # Web: o668nxgzwff, FTV: 38bb740b55f, JIOSTB: e882582cc55, ATV: d0287ab96d76
     }
-    playHeaders = {
+
+    # Headers with authentication and platform details
+    play_headers = {
         "accesstoken": token,
         "x-platform": "androidstb",
         "x-platform-token": "stb"
     }
-    playHeaders.update(headers)
 
-    r = session.post(playbackUrl, json=playData, headers=playHeaders)
-    if r.status_code != 200:
+    # Add any additional global headers if needed
+    global_headers = {
+        # Example global headers, replace with your actual headers
+        "User-Agent": "Your-App-Name/3.4.0",
+        "Content-Type": "application/json"
+    }
+    play_headers.update(global_headers)
+
+    try:
+        # Make the POST request
+        logging.info(f"Fetching playback data for content ID: {content_id}")
+        response = requests.post(playback_url, json=play_data, headers=play_headers)
+
+        # Check response status
+        if response.status_code != 200:
+            logging.error(f"Playback data fetch failed. HTTP Status: {response.status_code}, Response: {response.text}")
+            return None
+
+        # Parse the JSON response
+        result = response.json()
+        logging.debug(f"Playback data response: {result}")
+
+        # Validate and return playback data
+        if not result.get('data'):
+            logging.warning(f"No playback data found for content ID: {content_id}")
+            return None
+
+        return result['data']
+
+    except requests.exceptions.RequestException as e:
+        logging.error(f"An error occurred while fetching playback data: {e}")
+        return None
+    except Exception as e:
+        logging.error(f"Unexpected error: {e}")
         return None
 
-    result = r.json()
-    if not result['data']:
-        return None
-
-    return result['data']
 
 
 # Fetch Series Episode List from Server
