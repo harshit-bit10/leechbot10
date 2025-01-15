@@ -150,7 +150,7 @@ default_strm = ''
 config = utils.JSO(configPath, 4)
 app = Client(
     "SHARKOTTDLBOT",
-    bot_token="7335265361:AAF9dO3mYzG7oaaQ8hFt3WGo-vhpyZhimFw",
+    bot_token="7439562089:AAGrjFfGXkwAReLtzhSn1aDMi7j7e_oHTZs",
     api_id="7603458",
     api_hash="910e420f1f74f40305a684a331dade35",
     sleep_threshold=30
