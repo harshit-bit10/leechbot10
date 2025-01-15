@@ -2,6 +2,10 @@ import requests
 import xmltodict
 import logging
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # Request object with Session maintained
 session = requests.Session()
 
