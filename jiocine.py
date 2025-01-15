@@ -3,9 +3,9 @@ import xmltodict
 #Jio Cinema Downloader Bot Created By Aryan Chaudhary
 # Request object with Session maintained
 session = requests.Session()
-#session.proxies.update({'http':'http://72.10.160.90:8307'})
-session.proxies.update({'http':'http://72.10.160.90:8307'})
-proxy = {'http':'http://72.10.160.90:8307','https':"http://72.10.160.90:8307"}
+#session.proxies.update({'https':'https://133.232.81.141:80'})
+session.proxies.update({'https':'https://133.232.81.141:80'})
+proxy = {'http':'http://133.232.81.141:80','https':"http://133.232.81.141:80"}
 # Common Headers for Session
 headers = {
     "Origin": "https://www.jiocinema.com",
