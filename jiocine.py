@@ -196,16 +196,19 @@ def getSeriesEpisodes(content_id):
     return result['result']
 
 
-# Fetch Video URl details using Token
+# Fetch Video URL details using Token
 def getMPDData(mpd_url):
-    r = session.get(mpd_url, headers=headers)
-    if r.status_code != 200:
-        return None
-
     try:
+        r = session.get(mpd_url, headers=headers)
+        logger.info(f"Fetching MPD data from URL: {mpd_url} - Status Code: {r.status_code}")
+
+        if r.status_code != 200:
+            logger.error(f"Failed to fetch MPD data. Status Code: {r.status_code}, Response: {r.text}")
+            return None
+
         return xmltodict.parse(r.content)
     except Exception as e:
-        print(f"[!] getMPDData: {e}")
+        logger.error(f"[!] getMPDData: {e}")
         return None
 
 
