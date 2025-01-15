@@ -1,5 +1,6 @@
 import requests
 import xmltodict
+import logging
 
 # Request object with Session maintained
 session = requests.Session()
