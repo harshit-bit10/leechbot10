@@ -48,6 +48,8 @@ lang_map = {
     "or": "Oriya"
 }
 
+    "authToken": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7InVzZXJJZCI6IjVhNGRjZWNmLWNmZmUtNDU2NS1hNDVjLTI5Yjk0YjZmNTFmMSIsInVzZXJUeXBlIjoiR1VFU1QiLCJhcHBOYW1lIjoiUkpJTF9KaW9DaW5lbWEiLCJkZXZpY2VJZCI6IjE0NjQyNTExMTkiLCJkZXZpY2VUeXBlIjoiZmlyZVRWIiwib3MiOiJhbmRyb2lkIiwicHJvZmlsZUlkIjoiYmE2N2Y3MjAtNTRkNC00YTgyLThkNTUtOTkyMTI4OTc0NzkwIiwiYWRJZCI6IjE0NjQyNTExMTkiLCJleHBlcmltZW50S2V5Ijp7ImNvbmZpZ0tleSI6ImJhNjdmNzIwLTU0ZDQtNGE4Mi04ZDU1LTk5MjEyODk3NDc5MCIsImdyb3VwSWQiOjIyOTh9LCJwcm9maWxlRGV0YWlscyI6eyJwcm9maWxlVHlwZSI6ImFkdWx0IiwiY29udGVudEFnZVJhdGluZyI6IkEifSwidmVyc2lvbiI6MjAyNDAzMDQwfSwiZXhwIjoxNzM5NDQwNzg5LCJpYXQiOjE3MzY4NDg3ODl9.v3LcN_mVenrcGYHPBt5qNjmHlD-YHzhlACyvbt8ZEaYrzgGY481LZlIgsmMCVl_p-hHeN-8zkJqheF09oPdDWw"
+
 # Request object with Session maintained
 session = requests.Session()
 
@@ -1823,7 +1825,7 @@ async def download_playback(content_id, content_data, callback_query):
     is_processing_link = False  # Reset the processing state after the operation is complete
 
     # Fetch playback data using the content ID and auth token
-    content_playback = fetchPlaybackData(content_id, config.get("authToken"))
+    content_playback = fetchPlaybackData(content_id, authToken)
     
     # Check if playback data was successfully retrieved
     if not content_playback:
