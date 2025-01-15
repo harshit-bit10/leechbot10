@@ -112,6 +112,11 @@ class ButtonMaker:
                 menu.append(self.__footer_button)
         return InlineKeyboardMarkup(menu)
 
+# Generate main config file from definition config before starting
+configPath = joinPath(scriptsDir, 'config.json')
+if not utils.isExist(configPath):
+    utils.copyFile(joinPath(scriptsDir, 'config.def'), configPath)
+
 # Some important variables
 default_res = ""
 default_strm = ''
@@ -129,6 +134,74 @@ sudo_users = [6066102279]   # Add your user IDs here
 sudo_groups = [-1002273763090]  # Add your group ID here (negative ID for groups)
 dump_chat_id = [-1002316955124]
 credits = "SharkToonsIndia"
+
+async def is_user_sudo(client, user_id):
+    # Check if the user is in the sudo_users list
+    if user_id in sudo_users:
+        return True
+
+    # Check if the user is a member of any of the sudo_groups
+    for group_id in sudo_groups:
+        try:
+            chat_member = await client.get_chat_member(group_id, user_id)
+            # Allow access if the user is a member of the group
+            return True  # If the user is found in the group, grant access
+        except Exception as e:
+            print(f"Error checking group membership for group {group_id}: {e}")
+
+    return False
+
+@app.on_message(filters.private)  # Only respond to private messages
+async def handle_private_message(client, message):
+    user_id = message.from_user.id  # Get the user ID of the sender
+
+    # Check if the user is authorized
+    if user_id not in sudo_users:
+        # Send a message if the user is not authorized
+        await message.reply(
+            "<code>Hey Dude, seems like master hasn't given you access to use me.\n"
+            "Please contact him immediately at</code> <b> @SupremeYoriichi</b>"
+        )
+        return  # Exit the function if the user is not authorized
+
+    # If the user is authorized, send them a welcome message
+    await message.reply("<code>You Have Access, Bot By</code> <b>@SupremeYoriichi</b>")
+
+def sudo_only(func):
+    async def wrapper(client, message):
+        if not await is_user_sudo(client, message.from_user.id):
+            await message.reply_text("You do not have permission to use this command.")
+            return
+        return await func(client, message)
+    return wrapper
+
+
+# Global variables to store user selections
+# At the top of your script
+global content_name  # Declare it as global
+user_audio_selection = set()  # Use a set for audio selections
+user_video_selection = set()  # Initialize as a set for video selections
+content_data = None
+processing_states = {}
+ydl_opts = {}  # Initialize ydl_opts as a global variable
+# At the top of your script
+output_dir_name = ""
+output_dir = ""
+temp_dir = ""
+audio_formats = []  # Global variable for audio formats
+video_formats = []  # Global variable for video formats
+global playback_url  # Declare playback_url as global
+global processed_abrs  # Add this line
+global processed_vbrs  # Add this line
+processed_vbrs = []  # Initialize processed_vbrs as an empty list
+acodecs = []  # Global variable for processed audio information
+vcodecs = []  # Global variable for processed video information
+selected_stream_type = None
+# Global variable to track link processing state
+is_processing_link = False
+chat_id = None
+global rid_map  # Add this line at the top of your script
+rid_map = {}  # Initialize it as an empty dictionary
 
 # Download playback function
 async def download_playback(content_id, content_data, callback_query):
@@ -279,80 +352,9 @@ def extractyt(url, ci):
         print("[!] Failed to decode JSON. The file may be empty or corrupted.")
         return None  # Return None if JSON decoding fails
 
-# Generate main config file from definition config before starting
-configPath = joinPath(scriptsDir, 'config.json')
-if not utils.isExist(configPath):
-    utils.copyFile(joinPath(scriptsDir, 'config.def'), configPath)
 
 
 
-async def is_user_sudo(client, user_id):
-    # Check if the user is in the sudo_users list
-    if user_id in sudo_users:
-        return True
-
-    # Check if the user is a member of any of the sudo_groups
-    for group_id in sudo_groups:
-        try:
-            chat_member = await client.get_chat_member(group_id, user_id)
-            # Allow access if the user is a member of the group
-            return True  # If the user is found in the group, grant access
-        except Exception as e:
-            print(f"Error checking group membership for group {group_id}: {e}")
-
-    return False
-
-@app.on_message(filters.private)  # Only respond to private messages
-async def handle_private_message(client, message):
-    user_id = message.from_user.id  # Get the user ID of the sender
-
-    # Check if the user is authorized
-    if user_id not in sudo_users:
-        # Send a message if the user is not authorized
-        await message.reply(
-            "<code>Hey Dude, seems like master hasn't given you access to use me.\n"
-            "Please contact him immediately at</code> <b> @SupremeYoriichi</b>"
-        )
-        return  # Exit the function if the user is not authorized
-
-    # If the user is authorized, send them a welcome message
-    await message.reply("<code>You Have Access, Bot By</code> <b>@SupremeYoriichi</b>")
-
-def sudo_only(func):
-    async def wrapper(client, message):
-        if not await is_user_sudo(client, message.from_user.id):
-            await message.reply_text("You do not have permission to use this command.")
-            return
-        return await func(client, message)
-    return wrapper
-
-
-# Global variables to store user selections
-# At the top of your script
-global content_name  # Declare it as global
-user_audio_selection = set()  # Use a set for audio selections
-user_video_selection = set()  # Initialize as a set for video selections
-content_data = None
-processing_states = {}
-ydl_opts = {}  # Initialize ydl_opts as a global variable
-# At the top of your script
-output_dir_name = ""
-output_dir = ""
-temp_dir = ""
-audio_formats = []  # Global variable for audio formats
-video_formats = []  # Global variable for video formats
-global playback_url  # Declare playback_url as global
-global processed_abrs  # Add this line
-global processed_vbrs  # Add this line
-processed_vbrs = []  # Initialize processed_vbrs as an empty list
-acodecs = []  # Global variable for processed audio information
-vcodecs = []  # Global variable for processed video information
-selected_stream_type = None
-# Global variable to track link processing state
-is_processing_link = False
-chat_id = None
-global rid_map  # Add this line at the top of your script
-rid_map = {}  # Initialize it as an empty dictionary
 
 def round_to_nearest_even(num):
     """Round to the nearest even number."""
