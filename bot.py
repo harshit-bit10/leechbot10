@@ -225,8 +225,8 @@ def fetchPlaybackData(content_id, token):
 
     # Make the POST request with the proxy
     r = session.post(playbackUrl, json=playData, headers=playHeaders)
-    
-
+    if r.status_code = 200:
+        return None
 
     result = r.json()
     if not result['data']:
