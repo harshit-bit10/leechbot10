@@ -225,8 +225,8 @@ def fetchPlaybackData(content_id, token):
     # Define the proxy
     # Define the SOCKS4 proxy
     proxies = {
-        "http": "socks4://103.59.203.133:4145",
-        "https": "socks4://103.59.203.133:4145"  # Use the same proxy for HTTPS
+        "http": "http://190.52.104.197:999",
+        "https": "http://190.52.104.197:999"  # Use the same proxy for HTTPS
     }
 
     # Make the POST request with the proxy
