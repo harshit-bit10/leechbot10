@@ -177,7 +177,7 @@ def getContentDetails(content_id):
     return result['result'][0]
 
 
-# Fetch Video URl details using Token
+# Fetch Video URL details using Token
 def fetchPlaybackData(content_id, token):
     playbackUrl = f"https://apis-jiovoot.voot.com/playbackjv/v3/{content_id}"
 
@@ -212,14 +212,25 @@ def fetchPlaybackData(content_id, token):
         "parentalPinValid": False,
         "x-apisignatures": "38bb740b55f"  # Web: o668nxgzwff, FTV: 38bb740b55f, JIOSTB: e882582cc55, ATV: d0287ab96d76
     }
+    
     playHeaders = {
         "accesstoken": token,
         "x-platform": "androidstb",
         "x-platform-token": "stb"
     }
-    playHeaders.update(headers)
+    
+    # Update headers if needed
+    playHeaders.update(headers)  # Uncomment if 'headers' is defined elsewhere
 
-    r = session.post(playbackUrl, json=playData, headers=playHeaders)
+    # Define the proxy
+    proxies = {
+        "http": "http://101.109.176.32:8080",
+        "https": "http://101.109.176.32:8080"  # Use the same proxy for HTTPS
+    }
+
+    # Make the POST request with the proxy
+    r = session.post(playbackUrl, json=playData, headers=playHeaders, proxies=proxies)
+    
     if r.status_code != 200:
         return None
 
@@ -228,7 +239,6 @@ def fetchPlaybackData(content_id, token):
         return None
 
     return result['data']
-
 
 def getSeriesEpisodes(content_id):
     episodeQueryUrl = "https://content-jiovoot.voot.com/psapi/voot/v1/voot-web//content/generic/series-wise-episode?" + \
