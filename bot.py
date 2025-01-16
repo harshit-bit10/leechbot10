@@ -223,9 +223,10 @@ def fetchPlaybackData(content_id, token):
     playHeaders.update(headers)  # Uncomment if 'headers' is defined elsewhere
 
     # Define the proxy
+    # Define the SOCKS4 proxy
     proxies = {
-        "http": "http://101.109.176.32:8080",
-        "https": "http://101.109.176.32:8080"  # Use the same proxy for HTTPS
+        "http": "socks4://103.59.203.133:4145",
+        "https": "socks4://103.59.203.133:4145"  # Use the same proxy for HTTPS
     }
 
     # Make the POST request with the proxy
