@@ -222,18 +222,11 @@ def fetchPlaybackData(content_id, token):
     # Update headers if needed
     playHeaders.update(headers)  # Uncomment if 'headers' is defined elsewhere
 
-    # Define the proxy
-    # Define the SOCKS4 proxy
-    proxies = {
-        "http": "http://103.122.60.241:8080",
-        "https": "http://103.122.60.241:8080"  # Use the same proxy for HTTPS
-    }
 
     # Make the POST request with the proxy
-    r = session.post(playbackUrl, json=playData, headers=playHeaders, proxies=proxies)
+    r = session.post(playbackUrl, json=playData, headers=playHeaders)
     
-    if r.status_code != 200:
-        return None
+
 
     result = r.json()
     if not result['data']:
