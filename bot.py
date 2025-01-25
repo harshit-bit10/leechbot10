@@ -110,12 +110,6 @@ class ButtonMaker:
                 menu.append(self.__footer_button)
         return InlineKeyboardMarkup(menu)
 
-    # Add more Headers
-    ydl_headers = {
-        query_head[0]: query_head[1]
-    }
-    ydl_headers.update(jiocine.headers)
-
 def extractyt(url, ci):
     try:
         os.remove(f"info{ci}.json")
