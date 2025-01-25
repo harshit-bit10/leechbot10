@@ -1,5 +1,4 @@
 import json
-#Jio Cinema Downloader Bot Created By Aryan Chaudhary
 import re
 import asyncio
 import utils
@@ -12,9 +11,6 @@ import time
 import logging
 import ffmpeg
 from cdm.devices import devices
-import requests
-import xmltodict
-import logging
 from cdm.wvdecrypt import WvDecrypt
 from base64 import b64decode, b64encode
 from yt_dlp.postprocessor import PostProcessor
@@ -32,45 +28,8 @@ from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, 
 logging.basicConfig(level=logging.INFO)  # Set the logging level
 logger = logging.getLogger(__name__)  # Create a logger object
 
-# Language Id Name Map
-lang_map = {
-    "en": "English",
-    "hi": "Hindi",
-    "gu": "Gujarati",
-    "ta": "Tamil",
-    "te": "Telugu",
-    "kn": "Kannada",
-    "mr": "Marathi",
-    "ml": "Malayalam",
-    "bn": "Bengali",
-    "bho": "Bhojpuri",
-    "pa": "Punjabi",
-    "jp": "Japanese",
-    "or": "Oriya"
-}
-
-
-
-
-
-# Request object with Session maintained
-session = requests.Session()
-
-# Common Headers for Session
-headers = {
-    "Origin": "https://www.jiocinema.com",
-    "Referer": "https://www.jiocinema.com/",
-    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36",
-}
-
-# Content Type Dir Map
-contentTypeDir = {
-    "CAC": "promos",
-    "MOVIE": "movies",
-    "SHOW": "series",
-    "SERIES": "series",
-    "EPISODE": "series"
-}
+# Define your proxy
+proxy = "http://toonrips:rv2006rv@103.172.85.107:50100"  # Replace with your actual proxy details
 
 # Language Id Name Map
 lang_map = {
@@ -88,252 +47,6 @@ lang_map = {
     "jp": "Japanese",
     "or": "Oriya"
 }
-
-REV_LANG_MAP = {
-    "English": "en",
-    "Hindi": "hi",
-    "Gujarati": "gu",
-    "Tamil": "ta",
-    "Telugu": "te",
-    "Kannada": "kn",
-    "Marathi": "mr",
-    "Malayalam": "ml",
-    "Bengali": "bn",
-    "Bhojpuri": "bho",
-    "Punjabi": "pa",
-     "Japanese":"jp",
-    "Oriya": "or"
-}
-
-# Audio Codec Decode Map
-AUDIO_CODECS = {
-    "1": "PCM",
-    "mp3": "MP3",
-    "mp4a.66": "MPEG2_AAC",
-    "mp4a.67": "MPEG2_AAC",
-    "mp4a.68": "MPEG2_AAC",
-    "mp4a.69": "MP3",
-    "mp4a.6B": "MP3",
-    "mp4a.40.2": "MPEG4_AAC",
-    "mp4a.40.02": "MPEG4_AAC",
-    "mp4a.40.5": "MPEG4_AAC",
-    "mp4a.40.05": "MPEG4_AAC",
-    "mp4a.40.29": "MPEG4_AAC",
-    "mp4a.40.42": "MPEG4_XHE_AAC",
-    "ac-3": "AC3",
-    "mp4a.a5": "AC3",
-    "mp4a.A5": "AC3",
-    "ec-3": "EAC3",
-    "mp4a.a6": "EAC3",
-    "mp4a.A6": "EAC3",
-    "vorbis": "VORBIS",
-    "opus": "OPUS",
-    "flac": "FLAC",
-    "vp8": "VP8",
-    "vp8.0": "VP8",
-    "theora": "THEORA",
-}
-
-
-# Request guest token from JioCine Server
-def fetchGuestToken():
-    # URL to Guest Token Server
-    guestTokenUrl = "https://auth-jiocinema.voot.com/tokenservice/apis/v4/guest"
-
-    guestData = {
-        "appName": "RJIL_JioCinema",
-        "deviceType": "fireTV",
-        "os": "android",
-        "deviceId": "1464251119",
-        "freshLaunch": False,
-        "adId": "1464251119",
-        "appVersion": "4.1.3"
-    }
-
-    r = session.post(guestTokenUrl, json=guestData, headers=headers)
-    if r.status_code != 200:
-        return None
-
-    result = r.json()
-    if not result['authToken']:
-        return None
-
-    return result['authToken']
-
-
-# Fetch Content Details from Server
-def getContentDetails(content_id):
-    assetQueryUrl = "https://content-jiovoot.voot.com/psapi/voot/v1/voot-web//content/query/asset-details?" + \
-                    f"&ids=include:{content_id}&responseType=common&devicePlatformType=desktop"
-
-    r = session.get(assetQueryUrl, headers=headers)
-    if r.status_code != 200:
-        return None
-
-    result = r.json()
-    if not result['result'] or len(result['result']) < 1:
-        return None
-
-    return result['result'][0]
-
-
-# Fetch Video URL details using Token
-def fetchPlaybackData(content_id, token):
-    playbackUrl = f"https://apis-jiovoot.voot.com/playbackjv/v3/{content_id}"
-
-    playData = {
-        "4k": True,
-        "ageGroup": "18+",
-        "appVersion": "3.4.0",
-        "bitrateProfile": "xxhdpi",
-        "capability": {
-            "drmCapability": {
-                "aesSupport": "yes",
-                "fairPlayDrmSupport": "none",
-                "playreadyDrmSupport": "yes",
-                "widevineDRMSupport": "yes"
-            },
-            "frameRateCapability": [
-                {
-                    "frameRateSupport": "50fps",
-                    "videoQuality": "2160p"
-                }
-            ]
-        },
-        "continueWatchingRequired": False,
-        "dolby": True,
-        "downloadRequest": False,
-        "hevc": True,
-        "kidsSafe": False,
-        "manufacturer": "Amazon",
-        "model": "AFTKA",
-        "multiAudioRequired": True,
-        "osVersion": "9.0",
-        "parentalPinValid": False,
-        "x-apisignatures": "38bb740b55f"  # Web: o668nxgzwff, FTV: 38bb740b55f, JIOSTB: e882582cc55, ATV: d0287ab96d76
-    }
-    
-    playHeaders = {
-        "accesstoken": token,
-        "x-platform": "androidstb",
-        "x-platform-token": "stb"
-    }
-    
-    # Update headers if needed
-    playHeaders.update(headers)  # Uncomment if 'headers' is defined elsewhere
-
-
-    # Make the POST request with the proxy
-    r = session.post(playbackUrl, json=playData, headers=playHeaders)
-    if r.status_code != 200:
-        return None
-
-    result = r.json()
-    if not result['data']:
-        return None
-
-    return result['data']
-
-def getSeriesEpisodes(content_id):
-    episodeQueryUrl = "https://content-jiovoot.voot.com/psapi/voot/v1/voot-web//content/generic/series-wise-episode?" + \
-                    f"sort=episode:asc&id={content_id}"
-
-    r = session.get(episodeQueryUrl, headers=headers)
-    print(f"API Response Status Code: {r.status_code}")  # Debugging output
-    print(f"API Response: {r.text}")  # Print the raw response for debugging
-
-    if r.status_code != 200:
-        return None
-
-    result = r.json()
-    if not result['result'] or len(result['result']) < 1:
-        return None
-
-    return result['result']
-
-
-# Fetch Video URL details using Token
-def getMPDData(mpd_url):
-    try:
-        r = session.get(mpd_url, headers=headers)
-        logger.info(f"Fetching MPD data from URL: {mpd_url} - Status Code: {r.status_code}")
-
-        if r.status_code != 200:
-            logger.error(f"Failed to fetch MPD data. Status Code: {r.status_code}, Response: {r.text}")
-            return None
-
-        return xmltodict.parse(r.content)
-    except Exception as e:
-        logger.error(f"[!] getMPDData: {e}")
-        return None
-
-
-# Parse MPD data for PSSH maps
-def parseMPDData(mpd_per):
-    # Extract PSSH and KID
-    rid_kid = {}
-    pssh_kid = {}
-
-    # Store KID to corresponding Widevine PSSH and Representation ID
-    def readContentProt(rid, cp):
-        _pssh = None
-        if cp[1]["@schemeIdUri"].lower() == "urn:uuid:edef8ba9-79d6-4ace-a3c8-27dcd51d21ed":
-            _pssh = cp[1]["cenc:pssh"]
-
-        if _pssh:
-            if _pssh not in pssh_kid:
-                pssh_kid[_pssh] = set()
-
-            if cp[0]['@value'].lower() == "cenc":
-                _kid = cp[0]["@cenc:default_KID"].replace("-", "")  # Cleanup
-
-                rid_kid[rid] = {
-                    "kid": _kid,
-                    "pssh": _pssh
-                }
-                if _kid not in pssh_kid[_pssh]:
-                    pssh_kid[_pssh].add(_kid)
-
-    # Search PSSH and KID
-    for ad_set in mpd_per['AdaptationSet']:
-        resp = ad_set['Representation']
-        if isinstance(resp, list):
-            for res in resp:
-                if 'ContentProtection' in res:
-                    readContentProt(res['@id'], res['ContentProtection'])
-        else:
-            if 'ContentProtection' in resp:
-                readContentProt(resp['@id'], resp['ContentProtection'])
-
-    return rid_kid, pssh_kid
-
-
-# Perform Handshake with Widevine Server for License
-def getWidevineLicense(license_url, challenge, token, playback_id=None):
-    # Just in case :)
-    if not playback_id:
-        playback_id = "27349583-b5c0-471b-a95b-1e1010a901cb"
-
-    drmHeaders = {
-        "authority": "prod.media.jio.com",
-        "accesstoken": token,
-        "appname": "RJIL_JioCinema",
-        "devicetype": "androidstb",
-        "os": "android",
-        "uniqueid": "1957805b-8c2a-4110-a5d9-767da377ffce",
-        "x-platform": "fireOS",
-        "x-feature-code": "ytvjywxwkn",
-        "x-playbackid": playback_id
-    }
-    drmHeaders.update(headers)
-
-    r = session.post(license_url, data=challenge, headers=drmHeaders)
-    if r.status_code != 200:
-        print(f"[!] Error: {r.content}")
-        return None
-
-    return r.content
-
 
 class ButtonMaker:
     def __init__(self):
@@ -397,6 +110,33 @@ class ButtonMaker:
                 menu.append(self.__footer_button)
         return InlineKeyboardMarkup(menu)
 
+def extractyt(url, ci):
+    try:
+        os.remove(f"info{ci}.json")
+    except Exception:
+        pass
+    
+    # Run yt-dlp with a longer timeout
+    result = subprocess.run(
+        f"yt-dlp --dump-json {url} > info{ci}.json",
+        shell=True,
+        timeout=60  # Set a timeout of 60 seconds
+    )
+    
+    # Check if the command was successful
+    if result.returncode != 0:
+        print("[!] yt-dlp command failed. Please check the URL or your network connection.")
+        return None  # Return None if the command fails
+
+    # Load the JSON data
+    try:
+        with open(f'info{ci}.json', 'r') as f:
+            data = json.load(f)
+        return data
+    except json.JSONDecodeError:
+        print("[!] Failed to decode JSON. The file may be empty or corrupted.")
+        return None  # Return None if JSON decoding fails
+
 # Generate main config file from definition config before starting
 configPath = joinPath(scriptsDir, 'config.json')
 if not utils.isExist(configPath):
@@ -408,7 +148,7 @@ default_strm = ''
 config = utils.JSO(configPath, 4)
 app = Client(
     "SHARKOTTDLBOT",
-    bot_token="7439562089:AAGrjFfGXkwAReLtzhSn1aDMi7j7e_oHTZs",
+    bot_token="7267043935:AAEVAwrnYA6EFvCwxfFowfCwZM96ooUjMYU",
     api_id="7603458",
     api_hash="910e420f1f74f40305a684a331dade35",
     sleep_threshold=30
@@ -417,7 +157,7 @@ app = Client(
 # List of sudo users (user IDs and group IDs)
 sudo_users = [6066102279]   # Add your user IDs here
 sudo_groups = [-1002273763090]  # Add your group ID here (negative ID for groups)
-dump_chat_id = [-1002316955124]
+dump_chat_id = [-1002368843413]
 credits = "SharkToonsIndia"
 
 async def is_user_sudo(client, user_id):
@@ -487,40 +227,6 @@ is_processing_link = False
 chat_id = None
 global rid_map  # Add this line at the top of your script
 rid_map = {}  # Initialize it as an empty dictionary
-
-
-
-
-def extractyt(url, ci):
-    try:
-        os.remove(f"info{ci}.json")
-    except Exception:
-        pass
-    
-    # Run yt-dlp with a longer timeout
-    result = subprocess.run(
-        f"yt-dlp --dump-json {url} > info{ci}.json",
-        shell=True,
-        timeout=60  # Set a timeout of 60 seconds
-    )
-    
-    # Check if the command was successful
-    if result.returncode != 0:
-        print("[!] yt-dlp command failed. Please check the URL or your network connection.")
-        return None  # Return None if the command fails
-
-    # Load the JSON data
-    try:
-        with open(f'info{ci}.json', 'r') as f:
-            data = json.load(f)
-        return data
-    except json.JSONDecodeError:
-        print("[!] Failed to decode JSON. The file may be empty or corrupted.")
-        return None  # Return None if JSON decoding fails
-
-
-
-
 
 def round_to_nearest_even(num):
     """Round to the nearest even number."""
@@ -640,8 +346,8 @@ cacodec_mapping = {
     "opus_vbr": "Opus.VBR",   # Opus VBR
     "opus_cbr": "Opus.CBR",   # Opus CBR
     "opus_lossless": "Opus.Lossless", # Opus Lossless
-    "ac-3": "DD+2.0",  #DD
-    "ec-3": "DD+5.1", #DD
+    "ac-3": "DD",  #DD
+    "ec-3": "DD+", #DD
     "flac_lossless": "FLAC.Lossless", # FLAC Lossless
     "flac_highres": "FLAC.High.Resolution", # FLAC High Resolution
     "aiff_c": "AIFF.C",       # AIFF-C
@@ -812,6 +518,7 @@ cvcodec_mapping = {
     "avc1.4D401B": "H.264",              # H.264 Main Profile 4:2:0 12-bit
     "avc1.4D401C": "H.264",              # H.264 Main Profile 4:2:2 12-bit
     "avc1.4D401D": "H.264",              # H.264 Main Profile 4:4:4 12-bit
+    "avc1.4D4028": "avc1",              # H.264 Main Profile 4:2:0 10-bit
     "hevc.1": "H.265",                   # H.265 Main Profile
     "hevc.2": "H.265",                   # H.265 Main 10 Profile
     "hevc.3": "H.265",                   # H.265 Main Still Picture Profile
@@ -1014,6 +721,7 @@ vcodec_mapping = {
     "avc1.4D401B": "avc1",              # H.264 Main Profile 4:2:0 12-bit
     "avc1.4D401C": "avc1",              # H.264 Main Profile 4:2:2 12-bit
     "avc1.4D401D": "avc1",              # H.264 Main Profile 4:4:4 12-bit
+    "avc1.4D4028": "avc1",              # H.264 Main Profile 4:2:0 10-bit
     "hevc.1": "HEVC Main",                 # HEVC Main Profile
     "hevc.2": "HEVC Main 10",              # HEVC Main 10 Profile
     "hevc.3": "HEVC Main Still Picture",    # HEVC Main Still Picture Profile
@@ -1228,7 +936,7 @@ async def fetch_widevine_keys(pssh_kid_map, content_playback, playback_data, cal
             if not got_cert:
                 print(f'[=>] Get Widevine Server License')
                 cert_req = b64decode("CAQ=")
-                cert_data = getWidevineLicense(playback_data["licenseurl"], cert_req,
+                cert_data = jiocine.getWidevineLicense(playback_data["licenseurl"], cert_req,
                                                        config.get("authToken"), content_playback["playbackId"])
                 cert_data = b64encode(cert_data).decode()
                 got_cert = True
@@ -1239,7 +947,7 @@ async def fetch_widevine_keys(pssh_kid_map, content_playback, playback_data, cal
 
             challenge = wv_decrypt.get_challenge(pssh)
 
-            wv_license = getWidevineLicense(playback_data["licenseurl"], challenge,
+            wv_license = jiocine.getWidevineLicense(playback_data["licenseurl"], challenge,
                                                     config.get("authToken"), content_playback["playbackId"])
 
             wv_decrypt.update_license(wv_license)
@@ -1382,7 +1090,7 @@ async def handle_url(client, message, content_url):
 
     # Fetch content details
     fct_message = await message.reply_text("Fetching content details...")
-    content_data = getContentDetails(content_id)
+    content_data = jiocine.getContentDetails(content_id)
     if not content_data:
         await message.reply_text("Content details not found!")
         is_processing_link = False  # Reset the processing state
@@ -1466,148 +1174,6 @@ async def handle_content_confirmation(client, callback_query):
     else:
         await callback_query.message.reply_text("Content not found. Please try again.")
 
-# Download playback function
-async def download_playback(content_id, content_data, callback_query):
-    logging.info(f"Starting download playback for Content ID: {content_id}")
-
-    initial_message = await callback_query.message.reply_text('[=>] Fetching Playback Details...')
-    is_processing_link = False  # Reset the processing state after the operation is complete
-
-    try:
-        # Fetch playback data using the content ID and auth token
-        content_playback = fetchPlaybackData(content_id, config.get("authToken"))
-        logging.info(f"Fetched playback data: {content_playback}")
-
-        # Check if playback data was successfully retrieved
-        if not content_playback:
-            logging.warning(f"No playback details found for Content ID: {content_id}")
-            await initial_message.delete()
-            await callback_query.message.reply_text("[X] Playback Details Not Found!")
-            is_processing_link = False
-            return
-
-        playback_urls = content_playback.get("playbackUrls", [])  # Use .get() to avoid KeyError
-        n_playbacks = len(playback_urls)
-        logging.info(f"Number of playback URLs found: {n_playbacks}")
-
-        # Ask user to select stream type if multiple playback URLs are available
-        if n_playbacks > 1:
-            logging.info("Multiple playback URLs found. Asking user for stream type selection.")
-            await initial_message.delete()
-            await callback_query.message.reply_text(
-                "Which Stream Type do you prefer? (HLS or DASH)", 
-                reply_markup=create_inline_buttons(["HLS", "DASH"], "stream_type")
-            )
-        elif n_playbacks == 1:
-            logging.info("Single playback URL found. Processing immediately.")
-            await initial_message.delete()
-            playback_data = playback_urls[0]
-            await process_playback_data(playback_data, callback_query)
-            return
-
-        # If no playback data is available, inform the user
-        if n_playbacks == 0:
-            logging.warning("No playback data available.")
-            await initial_message.delete()
-            await callback_query.message.reply_text("[X] No playback data available. Please try again.")
-            return
-    except Exception as e:
-        logging.error(f"An error occurred: {e}", exc_info=True)
-        await initial_message.delete()
-        await callback_query.message.reply_text("[X] An unexpected error occurred. Please try again later.")
-
-
-# Handle stream type selection (HLS or DASH)
-# Handle stream type selection (HLS or DASH)
-@app.on_callback_query(filters.regex(r"^stream_type_(\w+)$"))
-async def handle_stream_type_selection(client, callback_query):
-    global selected_stream_type  # Use the global variable to track the selected stream type
-    await callback_query.answer()
-    selected_stream_type = callback_query.data.split("_")[-1]  # Get the selected stream type (HLS or DASH)
-
-    # Fetch playback data based on the selected stream type
-    content_playback = fetchPlaybackData(content_data['id'], config.get("authToken"))
-
-    if not content_playback:
-        await callback_query.message.reply_text("[!] Unable to fetch playback data. Please try again.")
-        return
-
-    playback_urls = content_playback.get("playbackUrls", [])
-    
-    if not playback_urls:
-        await callback_query.message.reply_text("[!] No playback URLs found for the selected stream type.")
-        return
-
-    # Select the first available playback URL
-    playback_data = playback_urls[0]
-    global playback_url
-    playback_url = playback_data['url']  # Store the URL
-
-    # Inform the user about the selected stream type and playback URL
-    stream_type_message = await callback_query.message.reply_text(f'[*] Selected Stream Type: {selected_stream_type}')
-    playback_url_message = await callback_query.message.reply_text(f'[*] Playback URL: {playback_url}')
-
-    # Proceed with the download process
-    await process_playback_data(playback_data, callback_query)
-
-    # Delete the stream type and playback URL messages after a short delay
-    await stream_type_message.delete()
-    await playback_url_message.delete()
-    # Also delete the inline buttons message
-    await callback_query.message.delete()  # This will delete the message containing the inline buttons
-
-async def process_playback_data(playback_data, callback_query):
-    global playback_url, rid_map  # Declare rid_map as global
-    if not playback_data:
-        await callback_query.message.reply_text("[X] Unable to get Playback Url!")
-        logger.error("Playback data is empty or None.")
-        return
-
-    playback_url = playback_data['url']  # Store the URL
-
-    # Log the required information to the console
-    logger.info(f"Playback URL: {playback_url}, Encryption: {playback_data.get('encryption', 'None')}, Stream Type: {playback_data.get('streamtype', 'Unknown')}")
-
-    # Fetch MPD data if the stream type is DASH
-    if playback_data["streamtype"] == "dash":
-        getting_mpd_message = await callback_query.message.reply_text('[ =>] Getting MPD manifest data...')
-        mpd_data = getMPDData(playback_data["url"])
-        
-        if not mpd_data:
-            await getting_mpd_message.delete()  # Delete the getting MPD message
-            await callback_query.message.reply_text("[!] Failed to get MPD manifest")
-            logger.error(f"Failed to retrieve MPD manifest for URL: {playback_url}")
-            return
-
-        periods = mpd_data['MPD'].get('Period', [])
-        if not periods:
-            await getting_mpd_message.delete()  # Delete the getting MPD message
-            await callback_query.message.reply_text("[!] Failed to parse MPD manifest")
-            logger.error(f"MPD manifest retrieved but no periods found for URL: {playback_url}")
-            return
-
-        # Extract rid_map and pssh_kid
-        rid_map, pssh_kid = parseMPDData(periods)  # Ensure this function returns the correct values
-
-        # Proceed with decryption if PSSH keys are available
-        if len(pssh_kid) > 0:
-            await fetch_widevine_keys(pssh_kid, content_playback, playback_data)
-            await download_vod_ytdlp(playback_data['url'], content_data, callback_query, has_drm=True, rid_map=rid_map)
-        else:
-            await getting_mpd_message.delete()  # Delete the getting MPD message
-            pssh_message = await callback_query.message.reply_text("[!] Can't find PSSH, Content may be Encrypted")
-            logger.warning(f"No PSSH found for URL: {playback_url}. Content may be encrypted.")
-            await download_vod_ytdlp(playback_data['url'], content_data, callback_query)
-    elif playback_data["streamtype"] == "hls" and playback_data["encryption"] == "aes128":
-        await download_vod_ytdlp(playback_data['url'], content_data, callback_query)
-    else:
-        await callback_query.message.reply_text("[X] Unsupported Stream Type!")
-        logger.error(f"Unsupported stream type for URL: {playback_url}. Stream Type: {playback_data['streamtype']}")
-
-    await asyncio.sleep(1)  # Wait for 1 seconds (or your desired duration)
-    if 'pssh_message' in locals():
-        await pssh_message.delete()  # Delete the message if it was created
-
 async def download_vod_ytdlp(url, content, callback_query, has_drm=False, rid_map=None):
     global default_res, audio_formats, video_formats, output_dir_name, output_dir, temp_dir, ydl_headers, processed_abrs # Declare as global at the beginning of the function
 
@@ -1621,7 +1187,7 @@ async def download_vod_ytdlp(url, content, callback_query, has_drm=False, rid_ma
             default_res = -1  # Default to -1 if conversion fails
 
     # Conversion Map for Type to Sub Folder
-    sub_dir = contentTypeDir[content["mediaType"]]
+    sub_dir = jiocine.contentTypeDir[content["mediaType"]]
     output_dir_name = sanitize_folder_name(f"{content['fullTitle']} ({content['releaseYear']})")
 
     is_series_episode = content["mediaType"] == "EPISODE"
@@ -1642,7 +1208,7 @@ async def download_vod_ytdlp(url, content, callback_query, has_drm=False, rid_ma
     ydl_headers = {
         query_head[0]: query_head[1]
     }
-    ydl_headers.update(headers)
+    ydl_headers.update(jiocine.headers)
 
     ydl_opts = {
         'no_warnings': True,
@@ -1718,9 +1284,11 @@ async def handle_continue_selection(client, callback_query):
     await callback_query.answer()
     
     if user_audio_selection:
+        # Remove the inline keyboard from the current message
+        await callback_query.message.edit_reply_markup(reply_markup=None)
+
         await callback_query.message.reply_text("Audio selection complete. Now select a video track:")
         
-        # Create buttons for video selection with single-select
         # Create buttons for video selection with single-select
         video_buttons = create_selection_buttons(
             [
@@ -1810,11 +1378,16 @@ async def confirm_video_selection(client, callback_query,):
 
     print(f"PreCaption constructed: {precaption}")  # Debugging statement
 
+    # Before starting the download, remove the inline keyboard
+    await callback_query.message.edit_reply_markup(reply_markup=None)  # Remove the inline keyboard
+
     # Send the initial download message and store the message object
-    download_message = await callback_query.message.reply_text(f"[+] Downloading ...... \nFilename: {precaption}")
+    download_message = await callback_query.message.reply_text(f"[+] Downloading ...... \nFilename: {precaption}", reply_markup = None)
 
     user_audio_selection.clear()  # Reset audio track selection
     user_video_selection.clear()  # Reset video track selection
+
+
 
     # After confirming the selection and before starting the download
     is_processing_link = False  # Set to True when starting the download
@@ -1850,6 +1423,12 @@ async def download_selected_formats(playback_url, audio_formats_selected, video_
     # Set up the download options for the selected video format
     output_name = f"{sanitized_video_name}.%(ext)s"
     
+    # Define your proxy configuration 
+    PROXY_CONFIG = {
+        'proxy_url': "http://toonrips:rv2006rv@103.172.85.107:50100",  # Replace with your actual proxy details
+        'USE_PROXY_WHILE_DOWNLOADING': True  # Set to True if you want to use the proxy
+    }
+    
     # Set up the download options for video using aria2c
     video_ydl_opts = {
         'format': video_format['format_id'],
@@ -1857,6 +1436,7 @@ async def download_selected_formats(playback_url, audio_formats_selected, video_
         'http_headers': ydl_headers,
         'external_downloader': 'aria2c',  # Use aria2c as the external downloader
         'geo_bypass': True,  # Enable geo-bypass
+        'proxy': PROXY_CONFIG['proxy_url'] if PROXY_CONFIG['USE_PROXY_WHILE_DOWNLOADING'] else None,  # Add the proxy here
         'external_downloader_args': [
             'aria2c:--retry-wait=1',
             '--max-file-not-found=10',
@@ -1902,6 +1482,7 @@ async def download_selected_formats(playback_url, audio_formats_selected, video_
             'http_headers': ydl_headers,
             'external_downloader': 'aria2c',  # Use aria2c as the external downloader
             'geo_bypass': True,  # Enable geo-bypass
+            'proxy': PROXY_CONFIG['proxy_url'] if PROXY_CONFIG['USE_PROXY_WHILE_DOWNLOADING'] else None,  # Add the proxy here
             'external_downloader_args': [
                 'aria2c:--retry-wait=1',
                 '--max-file-not-found=10',
@@ -1999,7 +1580,7 @@ async def refresh_playback_url(callback_query):
     await callback_query.message.reply_text("[*] Refreshing playback URL...")
 
     # Fetch new playback data using the content ID and auth token
-    content_playback = fetchPlaybackData(content_data['id'], config.get("authToken"))
+    content_playback = jiocine.fetchPlaybackData(content_data['id'], config.get("authToken"))
 
     # Check if playback data was successfully retrieved
     if not content_playback:
@@ -2107,7 +1688,7 @@ async def handle_video_selection(client, callback_query):
     video_buttons.inline_keyboard.append([InlineKeyboardButton("Continue", callback_data="confirm_video_selection")])
 
     # Update the same message with video buttons
-    video_selection_message = await callback_query.message.edit_reply_markup(reply_markup=video_buttons)
+    await callback_query.message.edit_reply_markup(reply_markup=video_buttons)
 
 # Confirm video selection
 @app.on_callback_query(filters.regex(r"^confirm_video_selection$"))
@@ -2135,12 +1716,12 @@ async def download_whole_season(client, message, content_url):
 
     # Fetch season details
     season_id = extract_season_id(content_url)  # Implement this function to extract the season ID from the URL
-    season_data = getContentDetails(season_id)
+    season_data = jiocine.getContentDetails(season_id)
     if not season_data:
         await message.reply_text("[X] Season Details Not Found!")
         return
 
-    episodes = getSeriesEpisodes(season_id)
+    episodes = jiocine.getSeriesEpisodes(season_id)
     if not episodes:
         await message.reply_text("[X] Season Episodes Not Found!")
         return
@@ -2152,7 +1733,7 @@ async def download_whole_season(client, message, content_url):
     # Download each episode one by one
     for episode in episodes:
         episode_id = episode['id']
-        episode_data = getContentDetails(episode_id)
+        episode_data = jiocine.getContentDetails(episode_id)
         if not episode_data:
             await message.reply_text(f"[X] Episode Details Not Found for Episode ID: {episode_id}")
             continue
@@ -2187,7 +1768,127 @@ async def ask_for_audio_video_selection(client, message, episodes):
 
     await message.reply_text("Please select video tracks:", reply_markup=video_buttons)
 
+# Download playback function
+async def download_playback(content_id, content_data, callback_query):
+    initial_message = await callback_query.message.reply_text('[=>] Fetching Playback Details...')
+    
+    is_processing_link = False  # Reset the processing state after the operation is complete
 
+    # Fetch playback data using the content ID and auth token
+    content_playback = jiocine.fetchPlaybackData(content_id, config.get("authToken"))
+    
+    # Check if playback data was successfully retrieved
+    if not content_playback:
+        await initial_message.delete()  # Delete the initial message
+        await callback_query.message.reply_text("[X] Playback Details Not Found!")
+        is_processing_link = False
+        return
+
+    playback_urls = content_playback.get("playbackUrls", [])  # Use .get() to avoid KeyError
+    n_playbacks = len(playback_urls)
+    
+    # Ask user to select stream type if multiple playback URLs are available
+    if n_playbacks > 1:
+        await initial_message.delete()  # Delete the initial message
+        stream_type_message = await callback_query.message.reply_text(
+            "Which Stream Type do you prefer? (HLS or DASH)", 
+            reply_markup=create_inline_buttons(["HLS", "DASH"], "stream_type")
+        )
+    elif n_playbacks == 1:
+        await initial_message.delete()  # Delete the initial message
+        playback_data = playback_urls[0]  # Directly assign if only one playback URL is available
+        await process_playback_data(playback_data, callback_query)  # Process immediately if only one URL
+        return  # Exit after processing
+
+    # If no playback data is available, inform the user
+    if n_playbacks == 0:
+        await initial_message.delete()  # Delete the initial message
+        await callback_query.message.reply_text("[X] No playback data available. Please try again.")
+        return
+
+# Handle stream type selection (HLS or DASH)
+# Handle stream type selection (HLS or DASH)
+@app.on_callback_query(filters.regex(r"^stream_type_(\w+)$"))
+async def handle_stream_type_selection(client, callback_query):
+    global selected_stream_type  # Use the global variable to track the selected stream type
+    await callback_query.answer()
+    selected_stream_type = callback_query.data.split("_")[-1]  # Get the selected stream type (HLS or DASH)
+
+    # Fetch playback data based on the selected stream type
+    content_playback = jiocine.fetchPlaybackData(content_data['id'], config.get("authToken"))
+
+    if not content_playback:
+        await callback_query.message.reply_text("[!] Unable to fetch playback data. Please try again.")
+        return
+
+    playback_urls = content_playback.get("playbackUrls", [])
+    
+    if not playback_urls:
+        await callback_query.message.reply_text("[!] No playback URLs found for the selected stream type.")
+        return
+
+    # Select the first available playback URL
+    playback_data = playback_urls[0]
+    global playback_url
+    playback_url = playback_data['url']  # Store the URL
+
+    # Inform the user about the selected stream type and playback URL
+    stream_type_message = await callback_query.message.reply_text(f'[*] Selected Stream Type: {selected_stream_type}')
+    playback_url_message = await callback_query.message.reply_text(f'[*] Playback URL: {playback_url}')
+
+    # Proceed with the download process
+    await process_playback_data(playback_data, callback_query)
+
+    # Delete the stream type and playback URL messages after a short delay
+    await stream_type_message.delete()
+    await playback_url_message.delete()
+    # Also delete the inline buttons message
+    await callback_query.message.delete()  # This will delete the message containing the inline buttons
+
+async def process_playback_data(playback_data, callback_query):
+    global playback_url, rid_map  # Declare rid_map as global
+    if not playback_data:
+        await callback_query.message.reply_text("[X] Unable to get Playback Url!")
+        return
+
+    playback_url = playback_data['url']  # Store the URL
+
+    # Log the required information to the console
+    print(f"Playback URL: {playback_url}, Encryption: {playback_data.get('encryption', 'None')}, Stream Type: {playback_data.get('streamtype', 'Unknown')}")
+
+    # Fetch MPD data if the stream type is DASH
+    if playback_data["streamtype"] == "dash":
+        getting_mpd_message = await callback_query.message.reply_text('[ =>] Getting MPD manifest data...')
+        mpd_data = jiocine.getMPDData(playback_data["url"])
+        if not mpd_data:
+            await getting_mpd_message.delete()  # Delete the getting MPD message
+            await callback_query.message.reply_text("[!] Failed to get MPD manifest")
+            return
+
+        periods = mpd_data['MPD']['Period']
+        if not periods:
+            await getting_mpd_message.delete()  # Delete the getting MPD message
+            await callback_query.message.reply_text("[!] Failed to parse MPD manifest")
+            return
+
+        # Extract rid_map and pssh_kid
+        rid_map, pssh_kid = jiocine.parseMPDData(periods)  # Ensure this function returns the correct values
+
+        # Proceed with decryption if PSSH keys are available
+        if len(pssh_kid) > 0:
+            await fetch_widevine_keys(pssh_kid, content_playback, playback_data)
+            await download_vod_ytdlp(playback_data['url'], content_data, callback_query, has_drm=True, rid_map=rid_map)
+        else:
+            await getting_mpd_message.delete()  # Delete the getting MPD message
+            pssh_message = await callback_query.message.reply_text("[!] Can't find PSSH, Content may be Encrypted")
+            await download_vod_ytdlp(playback_data['url'], content_data, callback_query)
+    elif playback_data["streamtype"] == "hls" and playback_data["encryption"] == "aes128":
+        await download_vod_ytdlp(playback_data['url'], content_data, callback_query)
+    else:
+        await callback_query.message.reply_text("[X] Unsupported Stream Type!")
+
+    await asyncio.sleep(1)  # Wait for 1 seconds (or your desired duration)
+    await pssh_message.delete()  # Delete the message
 
 async def get_video_duration(video_path):
     """Get the duration of the video file using ffprobe."""
@@ -2241,8 +1942,8 @@ def download_content(output_dir_name, content, content_info, base_url, audio_fil
     # Audio Codec
     if 'acodec' in content_info:
         acodec = content_info['acodec']
-        if acodec and acodec in AUDIO_CODECS:
-            acodec = AUDIO_CODECS[acodec]
+        if acodec and acodec in jiocine.AUDIO_CODECS:
+            acodec = jiocine.AUDIO_CODECS[acodec]
             if 'AAC' in acodec:
                 output_name += '.AAC'
             elif 'AC3' in acodec:
@@ -2338,7 +2039,7 @@ import os
 import asyncio
 import subprocess
 
-async def merge_vod_ffmpeg(video_path, audio_paths, output_path, download_message, precaption, credits):
+async def merge_vod_ffmpeg(video_path, audio_paths, output_path, download_message, precaption, credits, proxy=None):
     """
     Merge video and audio streams using FFmpeg with metadata embedding.
     
@@ -2349,6 +2050,7 @@ async def merge_vod_ffmpeg(video_path, audio_paths, output_path, download_messag
     - download_message: Telegram message object for sending updates.
     - precaption: Pre-caption for messages (if needed).
     - credits: Metadata to embed, such as "encoded by {credits}".
+    - proxy: Proxy settings (optional).
     """
     # Check if video file exists
     if not os.path.exists(video_path):
@@ -2362,6 +2064,11 @@ async def merge_vod_ffmpeg(video_path, audio_paths, output_path, download_messag
             print(f"Audio file does not exist: {audio_path}")
             await download_message.reply_text(f"[!] Audio file does not exist: {audio_path}")
             return
+
+    # Set proxy environment variables if provided
+    if proxy:
+        os.environ['http_proxy'] = proxy
+        os.environ['https_proxy'] = proxy
 
     # Function to get bitrate for audio files
     def get_bitrate(file_path):
@@ -2426,18 +2133,27 @@ async def merge_vod_ffmpeg(video_path, audio_paths, output_path, download_messag
     except subprocess.CalledProcessError as e:
         print(f"Error during muxing: {e}")
         await download_message.reply_text("[!] Error during muxing.")
+    finally:
+        # Clean up environment variables
+        if proxy:
+            del os.environ['http_proxy']
+            del os.environ['https_proxy']
 
 
 
 class tgUploader:
-    def __init__(self, app, message, message_id, muxing_message):
+    def __init__(self, app, message, message_id, muxing_message, proxy=None):
         self.app = app
         self.message = message
         self.message_id = message_id
         self.muxing_message = muxing_message
+        
+        # Set proxy environment variables if provided
+        if proxy:
+            os.environ['http_proxy'] = proxy
+            os.environ['https_proxy'] = proxy
 
     async def upload_file(self, file_path, precaption, duration: float, thumbnail_path):
-        await self.muxing_message.delete()  # Delete the muxing message
         up_dn_msg_message = None  # Initialize the message variable
         uploaded_size = 0  # Initialize uploaded_size in the outer function
         last_update_time = time.time()  # Track the last update time
@@ -2483,21 +2199,21 @@ class tgUploader:
                 if current_time - last_update_time >= 5:  # Check if 5 seconds have passed
                     # Create a detailed message for the chat
                     chat_message = (
-                        f"<code>[ + ] ......</code> <b>Uploading The File :-</b>\n"
-                        f"<b>File - Name :-</b> <code>{precaption}</code>\n"   
+                        f"<code>[ + ] ......</code> <b>⚡ ᴜᴘʟᴏᴀᴅɪɴɢ .... ᴛʜᴇ Fɪʟᴇ:-</b>\n"
+                        f"<b>[🗃️ Fɪʟᴇɴᴀᴍᴇ:- </b>{caption}]\n"  # Caption
                         f"<b>[{progress_bar}]</b>\n"  # Progress bar
-                        f"<b>Percentage :-</b> <code>{percent:.2f}%</code>\n"  # Percentage display
-                        f"<b>Uploaded :-</b> <code>{uploaded_size_display:.2f} {size_unit} / {file_size_display:.2f} {size_unit}</code>\n"  # Uploaded size
-                        f"<b>ETA :-</b> <code>{eta:.2f} seconds</code>\n"  # ETA 
-                        f"<b>Speed :-</b> <code>{speed:.2f} MB/s </code>"  # Speed
+                        f"<b>📊 Pᴇʀᴄᴇɴᴛᴀɢᴇ :-</b> <code>{percent:.2f}%</code>\n"  # Percentage display
+                        f"<b>📥 Uᴘʟᴏᴀᴅᴇᴅ :-</b> <code>{uploaded_size_display:.2f} {size_unit} / {file_size_display:.2f} {size_unit}</code>\n"  # Uploaded size
+                        f"<b>🧭 Eᴛᴀ :-</b> <code>{eta:.2f} seconds</code>\n"  # ETA 
+                        f"<b>🚅 Sᴘᴇᴇᴅ :-</b> <code>{speed:.2f} MB/s </code>"  # Speed
                     )
                     try:
-                        up_dn_msg_message = await self.app.edit_message_text(chat_id=self.message.chat.id, message_id=self.message_id, text=chat_message)
+                        up_dn_msg_message = await self.muxing_message.edit_text(text=chat_message)  # Corrected line
                         last_update_time = current_time  # Update the last update time
                     except FloodWait as e:
                         print(f"FloodWait: Sleeping for {e.x} seconds")
                         await asyncio.sleep(e.x)  # Wait for the specified time
-                        up_dn_msg_message = await self.app.edit_message_text(chat_id=self.message.chat.id, message_id=self.message_id, text=chat_message)  # Retry sending the message
+                        up_dn_msg_message = await self.muxing_message.edit_text(text=chat_message)  # Retry sending the message
 
             # Upload the video with the thumbnail and capture the message
             video_message = await self.app.send_video(
@@ -2507,7 +2223,7 @@ class tgUploader:
                 caption=precaption,
                 width=1280,
                 height=720,
-                duration=duration , 
+                duration=duration, 
                 thumb=thumbnail_path
             )
             print(f"[+] Successfully uploaded: {file_path}")
@@ -2515,13 +2231,13 @@ class tgUploader:
             if hasattr(video_message, 'id'):
                 print(f"[DEBUG] Video message ID: {video_message.id}")  # Debugging line
                 await self.app.copy_message(
-                        chat_id=dump_chat_id[0],  # Access the first element of the list
+                    chat_id=dump_chat_id[0],  # Access the first element of the list
                     from_chat_id=self.message.chat.id,
                     message_id=video_message.id   # The ID of the message to copy
                 )
-                logger.info(f"Video forwarded successfully for {chat_id} to dump chat {dump_chat_id}.")
+                print(f"Video forwarded successfully to dump chat {dump_chat_id}.")
             else:
-               print("[!] Video message ID is not available.")
+                print("[!] Video message ID is not available.")
 
             # Cleanup: Delete the uploaded file and thumbnail
             os.remove(file_path)
@@ -2541,7 +2257,7 @@ if __name__ == '__main__':
 
     if not config.get("authToken") and not config.get("useAccount"):
         print("[=>] Guest Token is Missing, Requesting One")
-        guestToken = fetchGuestToken()
+        guestToken = jiocine.fetchGuestToken()
         if not guestToken:
             print("[!] Guest Token Not Received")
             exit(0)
