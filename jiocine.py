@@ -10,7 +10,8 @@ proxy = {'http':'toonrips:rv2006rv@103.172.85.107:501009'}
 # Common Headers for Session
 headers = {
     "Origin": "https://www.jiocinema.com",
-    "Referer": "https://www.jiocinema.com/"
+    "Referer": "https://www.jiocinema.com/",
+    'User -Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
 }
 
 # Content Type Dir Map
