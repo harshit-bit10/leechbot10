@@ -1,14 +1,11 @@
 import requests
 import xmltodict
-import logging
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
+#Jio Cinema Downloader Bot Created By Aryan Chaudhary
 # Request object with Session maintained
 session = requests.Session()
-
+#session.proxies.update({'http':'toonrips:rv2006rv@103.172.85.107:50100'})
+session.proxies.update({'http':'toonrips:rv2006rv@103.172.85.107:50100'})
+proxy = {'http':'toonrips:rv2006rv@103.172.85.107:501009'}
 # Common Headers for Session
 headers = {
     "Origin": "https://www.jiocinema.com",
@@ -26,7 +23,7 @@ contentTypeDir = {
 }
 
 # Language Id Name Map
-lang_map = {
+LANG_MAP = {
     "en": "English",
     "hi": "Hindi",
     "gu": "Gujarati",
@@ -38,7 +35,7 @@ lang_map = {
     "bn": "Bengali",
     "bho": "Bhojpuri",
     "pa": "Punjabi",
-    "jp": "Japanese",
+    "jp":"Japanese",
     "or": "Oriya"
 }
 
@@ -103,7 +100,7 @@ def fetchGuestToken():
         "appVersion": "4.1.3"
     }
 
-    r = session.post(guestTokenUrl, json=guestData, headers=headers)
+    r = session.post(guestTokenUrl, json=guestData, headers=headers, proxies = proxy)
     if r.status_code != 200:
         return None
 
@@ -119,7 +116,7 @@ def getContentDetails(content_id):
     assetQueryUrl = "https://content-jiovoot.voot.com/psapi/voot/v1/voot-web//content/query/asset-details?" + \
                     f"&ids=include:{content_id}&responseType=common&devicePlatformType=desktop"
 
-    r = session.get(assetQueryUrl, headers=headers)
+    r = session.get(assetQueryUrl, headers=headers, proxies = proxy)
     if r.status_code != 200:
         return None
 
@@ -172,7 +169,7 @@ def fetchPlaybackData(content_id, token):
     }
     playHeaders.update(headers)
 
-    r = session.post(playbackUrl, json=playData, headers=playHeaders)
+    r = session.post(playbackUrl, json=playData, headers=playHeaders, proxies = proxy)
     if r.status_code != 200:
         return None
 
@@ -183,14 +180,12 @@ def fetchPlaybackData(content_id, token):
     return result['data']
 
 
+# Fetch Series Episode List from Server
 def getSeriesEpisodes(content_id):
     episodeQueryUrl = "https://content-jiovoot.voot.com/psapi/voot/v1/voot-web//content/generic/series-wise-episode?" + \
                     f"sort=episode:asc&id={content_id}"
 
-    r = session.get(episodeQueryUrl, headers=headers)
-    print(f"API Response Status Code: {r.status_code}")  # Debugging output
-    print(f"API Response: {r.text}")  # Print the raw response for debugging
-
+    r = session.get(episodeQueryUrl, headers=headers, proxies = proxy)
     if r.status_code != 200:
         return None
 
@@ -201,19 +196,16 @@ def getSeriesEpisodes(content_id):
     return result['result']
 
 
-# Fetch Video URL details using Token
+# Fetch Video URl details using Token
 def getMPDData(mpd_url):
+    r = session.get(mpd_url, headers=headers, proxies = proxy)
+    if r.status_code != 200:
+        return None
+
     try:
-        r = session.get(mpd_url, headers=headers)
-        logger.info(f"Fetching MPD data from URL: {mpd_url} - Status Code: {r.status_code}")
-
-        if r.status_code != 200:
-            logger.error(f"Failed to fetch MPD data. Status Code: {r.status_code}, Response: {r.text}")
-            return None
-
         return xmltodict.parse(r.content)
     except Exception as e:
-        logger.error(f"[!] getMPDData: {e}")
+        print(f"[!] getMPDData: {e}")
         return None
 
 
@@ -276,9 +268,13 @@ def getWidevineLicense(license_url, challenge, token, playback_id=None):
     }
     drmHeaders.update(headers)
 
-    r = session.post(license_url, data=challenge, headers=drmHeaders)
+    r = session.post(license_url, data=challenge, headers=drmHeaders, proxies = proxy)
     if r.status_code != 200:
         print(f"[!] Error: {r.content}")
         return None
 
     return r.content
+
+
+
+#Jio Cinema Downloader Bot Created By Aryan Chaudhary
