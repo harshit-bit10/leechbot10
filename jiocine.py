@@ -7,10 +7,18 @@ session = requests.Session()
 session.proxies.update({'http':'toonrips:rv2006rv@103.172.85.107:50100'})
 proxy = {'http':'toonrips:rv2006rv@103.172.85.107:501009'}
 # Common Headers for Session
+# Common Headers for Session
 headers = {
     "Origin": "https://www.jiocinema.com",
     "Referer": "https://www.jiocinema.com/",
-    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36",
+    "User -Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.5",
+    "Connection": "keep-alive",
+    "DNT": "1",  # Do Not Track
+    "Upgrade-Insecure-Requests": "1",
+    "Cache-Control": "no-cache",  # Prevent caching
+    "Pragma": "no-cache"  # Prevent caching
 }
 
 # Content Type Dir Map
